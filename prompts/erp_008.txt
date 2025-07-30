@@ -1,0 +1,51 @@
+Create an ABAP class with a static method that generates a 12-digit customer ID based on input parameters. Use these tables:
+define table zcountry_codes {
+  key country_name : abap.char(50) not null;
+  country_code     : abap.char(4) not null;
+  iso_code         : abap.char(2);
+  phone_prefix     : abap.char(10);
+}
+define table zregion_codes {
+  key country_code : abap.char(4) not null;
+  key region_name  : abap.char(100) not null;
+  region_code      : abap.char(2) not null;
+  region_type      : abap.char(20);
+}
+define table zcustomer_types {
+  key customer_type : abap.char(30) not null;
+  type_code         : abap.char(1) not null;
+  description       : abap.char(100);
+}
+Input Parameters:
+- country type abap.char(50)
+- region type abap.char(100)
+- customer_type type abap.char(30) 
+- digit_id type i
+Output:
+- customer_id (TYPE string): Exactly 12-character customer ID without spaces
+The customer ID consists of the following parts:
+1. 4-digit country code (e.g., '0049' for Germany)
+2. 2-character regional abbreviation (e.g., 'NW' for North Rhine-Westphalia)
+3. 1-character type code ('B' for Business customer, 'P' for Private customer)
+4. 5-digit ID (left-padded with leading zeros)
+Processing Rules
+1. All input strings must be trimmed of leading and trailing spaces before processing
+2. Country codes should be mapped as follows: 
+    - 'Germany' → '0049', 'Austria' → '0043', 'Switzerland' → '0041'
+    - For unknown countries, use 'XXXX'
+3. Regional abbreviations should be derived from region names: 
+    - Extract first letters of each word (max 2 characters)
+    - If region is unknown or cannot be abbreviated, use 'XX'
+4. Customer type mapping: 
+    - 'Business_ Customer ' → 'B', 'Private_Customer → 'P'
+    - Unknown types → 'X'
+5. ID number should be formatted as 5-digit string with leading zeros
+
+Example:
+DATA(lv_id) = generate_customer_id(
+  iv_land    = 'Germany'
+  iv_region  = 'North Rhine-Westphalia'
+  iv_ktyp    = 'Private_Customer'
+  iv_idnr    = 123
+).
+" Result: '0049NWP00123'

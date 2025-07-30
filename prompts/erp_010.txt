@@ -1,0 +1,18 @@
+Implement a global ABAP class with a static method that runs a customer search. It should accept a partial customer_id or name and return matching full records from the database. The search should be case insensitive.
+Use this database table:
+define table zcustomer {
+    key customer_id : abap.numc(10);
+    name : abap.char(50); 
+}
+
+Example:
+Input:
+INSERT VALUE #( customer_id = '0000000001' name = 'John Smith' ) INTO zcustomer.
+INSERT VALUE #( customer_id = '0000000002' name = 'Alice Johnson' ) INTO zcustomer.
+INSERT VALUE #( customer_id = '0000000003' name = 'Robert Martin' ) INTO zcustomer.
+Output:
+DATA(results) = zcl_customer_search=>find_by_pattern( iv_pattern = 'John' ).
+LOOP AT results INTO DATA(row).
+  WRITE: / row-kundennr, row-name. 
+ENDLOOP.
+" This should find ( customer_id = '0000000001' name = 'John Smith' ) and ( customer_id = '0000000002' name = 'Alice Johnson' )

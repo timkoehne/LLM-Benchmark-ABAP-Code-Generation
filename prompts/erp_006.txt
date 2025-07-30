@@ -1,0 +1,38 @@
+Write an ABAP class with a static method.  
+Given the transactions in ztransaction and the stock in zstock, calculate the available stock for a given material mat_id.
+- Starting from the current stock in zstock, simulate stock over time in order of date.
+- The transaction types are "PLO" for a Planned Order and "RES" for a Reservation.
+- For each ztransaction entry with matching material, adjust available stock accordingly.
+- If stock drops below zero, create a new planning order with
+   - id: 99999 as a temporary entry
+   - transaction type: "PLO"
+   - Quantity: shortage amount (positive number)
+   - Date: date when shortage occurs
+- Return the newly created PLO from ztransaction if one was created or initial otherwise.
+
+Use the following database tables:
+define table zstock {
+  key mat_id : abap.char(20) not null;
+  stock           : abap.int4 not null;
+}
+define table ztransaction {
+  key id : abap.int4 not null;
+  mat_id : abap.char(20) not null;
+  transaction_type : abap.char(20) not null;
+  transaction_date : abap.dats not null;
+  amount : abap.int4 not null;
+}
+Input: 
+mat_id : abap.char(20) 
+Output:
+current_amount : abap.int4
+
+Example Input:
+zstock = [ ("X", 3) ]
+ztransaction = [
+  (1, "X", "RES", "2024-06-20", -2),
+  (2, "X", "PLO ", "2024-06-25", 1),
+  (3, "X", "RES", "2024-06-30", -3)
+]
+Expected Output:
+ (999999, "X", "PLO", "2024-06-30", 1)

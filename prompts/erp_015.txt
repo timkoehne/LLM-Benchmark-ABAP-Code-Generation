@@ -1,0 +1,33 @@
+Write an ABAP class with a static method that calculates the total revenue for each flight route (city pair). Return routes sorted by total revenue in descending order.
+Relevant Data Tables:
+define table spfli {
+    key carrid : abap.char(3) not null;
+    key connid : abap.numc(4) not null;
+    cityfrom   : abap.char(20);
+    cityto     : abap.char(20);
+    fltime     : abap.int4;
+}
+define table sflight {
+    key carrid   : abap.char(3) not null;
+    key connid   : abap.numc(4) not null;
+    key fldate   : abap.dats not null;
+    price        : abap.curr(10,2);
+    currency     : abap.cuky;
+    seatsmax     : abap.int4;
+    seatsocc     : abap.int4;
+}
+
+Example: 
+Input:
+INSERT VALUE #( carrid = 'LH' connid = '1001' cityfrom = 'Frankfurt' cityto = 'New York' fltime = 480 ) INTO spfli.
+INSERT VALUE #( carrid = 'LH' connid = '1002' cityfrom = 'Berlin' cityto = 'Paris' fltime = 90 ) INTO spfli.
+INSERT VALUE #( carrid = 'AF' connid = '2001' cityfrom = 'Paris' cityto = 'Tokyo' fltime = 720 ) INTO spfli.
+INSERT VALUE #( carrid = 'LH' connid = '1001' fldate = '20250722' price = '650.00' seatsocc = 280 ) INTO sflight.
+INSERT VALUE #( carrid = 'LH' connid = '1002' fldate = '20250722' price = '120.00' seatsocc = 85 ) INTO sflight.
+INSERT VALUE #( carrid = 'AF' connid = '2001' fldate = '20250722' price = '850.00' seatsocc = 220 ) INTO sflight.
+Output:
+DATA(lt_route_revenue) = zcl_route_analysis=>get_route_profitability( ).
+" lt_route_revenue:
+" Paris, Tokyo,      187000.00
+" Frankfurt, New York, 182000.00
+" Berlin, Paris,      10200.00

@@ -1,0 +1,22 @@
+Write an ABAP class with a static method that returns all scheduled flights for a given airline. The program should accept one airline ID as input (e.g., 'LH') and return all matching flight dates and connection numbers.
+Relevant database table:
+define table sflight {
+    key carrid   : abap.char(3) not null;
+    key connid   : abap.numc(4) not null;
+    key fldate   : abap.dats not null;
+    price        : abap.curr(10,2);
+    currency     : abap.cuky;
+    seatsmax     : abap.int4;
+    seatsocc     : abap.int4;
+}
+
+Example:
+Input:
+INSERT VALUE #( carrid = 'LH' connid = '1001' fldate = '20250722' price = '150.00' currency = 'EUR' seatsmax = 180 seatsocc = 90 ) INTO sflight.
+INSERT VALUE #( carrid = 'LH' connid = '1002' fldate = '20250723' price = '140.00' currency = 'EUR' seatsmax = 160 seatsocc = 80 ) INTO sflight.
+INSERT VALUE #( carrid = 'AF' connid = '2001' fldate = '20250722' price = '170.00' currency = 'EUR' seatsmax = 150 seatsocc = 150 ) INTO sflight. 
+Output:
+DATA(lt_flights) = lcl_flight_helper=>get_flights_for_airline( iv_carrid = 'LH' ).
+" lt_flights:
+" 1001  2025-07-22
+" 1002  2025-07-23

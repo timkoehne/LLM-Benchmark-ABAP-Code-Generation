@@ -1,0 +1,40 @@
+Write an ABAP class with a static method that calculates the total revenue generated per airline based on booked flights. Return a list of all Airlines with t heir total revenue.
+Each booking has a price stored in the sflight table, and bookings are stored in sbook.
+Relevant Data Tables
+define table scarr {
+    key carrid : abap.char(3) not null;
+    carrname   : abap.char(40);
+}
+define table sflight {
+    key carrid   : abap.char(3) not null;
+    key connid   : abap.numc(4) not null;
+    key fldate   : abap.dats not null;
+    price        : abap.curr(10,2);
+    currency     : abap.cuky;
+}
+define table sbook {
+    key carrid   : abap.char(3) not null;
+    key connid   : abap.numc(4) not null;
+    key fldate   : abap.dats not null;
+    key bookid   : abap.char(10);
+    customid     : abap.char(10);
+    class        : abap.char(1);
+    forcuram     : abap.curr(10,2); " Booking amount
+}
+
+Example:
+Input:
+" SCARR
+INSERT VALUE #( carrid = 'LH' carrname = 'Lufthansa' ) INTO scarr.
+INSERT VALUE #( carrid = 'AF' carrname = 'Air France' ) INTO scarr.
+" SBOOK
+INSERT VALUE #( carrid = 'LH' connid = '1001' fldate = '20250722' bookid = 'B001' forcuram = '150.00' ) INTO sbook.
+INSERT VALUE #( carrid = 'LH' connid = '1001' fldate = '20250722' bookid = 'B002' forcuram = '150.00' ) INTO sbook.
+INSERT VALUE #( carrid = 'LH' connid = '1002' fldate = '20250723' bookid = 'B003' forcuram = '120.00' ) INTO sbook.
+INSERT VALUE #( carrid = 'AF' connid = '2001' fldate = '20250722' bookid = 'B004' forcuram = '200.00' ) INTO sbook.
+INSERT VALUE #( carrid = 'AF' connid = '2001' fldate = '20250722' bookid = 'B005' forcuram = '180.00' ) INTO sbook.
+Output:
+DATA(lt_result)  = lo_revenue->get_total_revenue_by_airline( ).
+" lt_result:
+" Lufthansa     420.00
+" Air France    380.00

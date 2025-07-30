@@ -1,0 +1,45 @@
+Write an ABAP class with a static method that allows a customer to search for available flights between two cities on a specific date.
+Only flights that still have free seats should be returned.
+Input:
+origin_city type char(20)
+desination_city type char(20)
+Return:
+airline name, departure city, destination, time, and available seats as a table
+Relevant Data Table
+define table scarr {
+    key carrid : abap.char(3) not null;
+    carrname   : abap.char(40);
+}
+define table spfli {
+    key carrid : abap.char(3) not null;
+    key connid : abap.numc(4) not null;
+    cityfrom   : abap.char(20);
+    cityto     : abap.char(20);
+    fltime     : abap.int4; " flight duration in minutes
+}
+define table sflight {
+    key carrid   : abap.char(3) not null;
+    key connid   : abap.numc(4) not null;
+    key fldate   : abap.dats not null;
+    price        : abap.curr(10,2);
+    currency     : abap.cuky;
+    seatsmax     : abap.int4;
+    seatsocc     : abap.int4;
+}
+
+Example
+Input:
+INSERT VALUE #( carrid = 'LH' carrname = 'Lufthansa' ) INTO scarr.
+INSERT VALUE #( carrid = 'AF' carrname = 'Air France' ) INTO scarr.
+INSERT VALUE #( carrid = 'LH' connid = '1001' cityfrom = 'Berlin' cityto = 'Paris'  fltime = 90 ) INTO spfli.
+INSERT VALUE #( carrid = 'AF' connid = '2002' cityfrom = 'Berlin' cityto = 'Paris'  fltime = 95 ) INTO spfli.
+INSERT VALUE #( carrid = 'LH' connid = '1002' cityfrom = 'Berlin' cityto = 'London' fltime = 80 ) INTO spfli.
+INSERT VALUE #( carrid = 'LH' connid = '1001' fldate = '20250722' price = '150.00' currency = 'EUR' seatsmax = 180 seatsocc = 100 ) INTO sflight.
+INSERT VALUE #( carrid = 'AF' connid = '2002' fldate = '20250722' price = '145.00' currency = 'EUR' seatsmax = 150 seatsocc = 150 ) INTO sflight.
+INSERT VALUE #( carrid = 'LH' connid = '1002' fldate = '20250722' price = '130.00' currency = 'EUR' seatsmax = 160 seatsocc = 80  ) INTO sflight.
+Output:
+DATA(lt_result) = lo_search->get_available_flights(
+    origin_city      = 'Berlin'
+    destination_city = 'Paris'
+    flight_date      = '20250722' ).
+" Lufthansa, Berlin, Paris, 90, 80

@@ -1,0 +1,27 @@
+Create an ABAP class with a static method that processes sales position. It should use the database table ZSALES_POSITIONS. Each entry contains an id, salesperson, article, net revenue amount and currency. The goal is to fill ZSALES_AGGR that aggregates revenue amounts for each combination of salesperson and article.
+define table zsales_positions {
+  key zid   : abap.int4 not null;
+  zname     : abap.char(20) not null;
+  zarticle  : abap.char(10) not null;
+  zcurrency : abap.cuky not null;
+  @Semantics.amount.currencyCode : 'zsales_positions.zcurrency'
+  zrev      : abap.curr(13,2) not null;
+}
+define table zsales_aggr {
+  key zname     : abap.char(20) not null;
+  key zarticle  : abap.char(10) not null;
+  key zcurrency : abap.cuky not null;
+  @Semantics.amount.currencyCode : 'zsales_aggr.zcurrency'
+  zrev          : abap.curr(13,2) not null;
+}
+
+Example:
+Input data in zsales_positions:
+1, 'SMITH', 'LAPTOP', 'USD', 1000.00
+2, 'SMITH', 'LAPTOP', 'USD', 500.00
+3, 'JONES', 'MOUSE', 'USD', 50.00
+4, 'JONES', 'LAPTOP', 'USD', 800.00
+Output data in zsales_aggr:
+'SMITH', 'LAPTOP', 'USD', 1500.00
+'JONES', 'LAPTOP', 'USD', 800.00
+'JONES', 'MOUSE', 'USD', 50.00

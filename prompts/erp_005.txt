@@ -1,0 +1,31 @@
+Write an ABAP class with a static method that calculates the minimum total duration of a production process represented as a directed acyclic graph (DAG). Each manufacturing step has a fixed duration and may depend on the completion of other steps. The goal is to determine the duration of the longest path in the graph (i.e. the critical path), which represents the minimum time required to complete all steps with respect to their order.
+The table zfs_data contains all manufacturing steps and zfnet_data contains the dependencies between steps.
+Use the following database tables:
+define table zfs_data {
+  key step_id     : abap.char(10) not null;
+      description : abap.char(50);
+      duration    : abap.int4;
+}
+define table zfnet_data {
+    key from_step   : abap.char(10) not null;
+    key to_step     : abap.char(10) not null;
+} 
+
+Example:
+Input:
+DATA(fs_data) = VALUE zfs_data( 
+  ( step_id = 'A1' description = 'Turning'     duration = 2 )
+  ( step_id = 'A2' description = 'Assembling'  duration = 3 )
+  ( step_id = 'A3' description = 'Milling'     duration = 1 )
+  ( step_id = 'A4' description = 'Painting'    duration = 3 )
+  ( step_id = 'A5' description = 'Cleaning'    duration = 1 )
+  ( step_id = 'A6' description = 'Packaging'   duration = 1 ) ).
+DATA(fnet_data) = VALUE zfnet_data( 
+  ( from_step = 'A1' to_step = 'A4' )
+  ( from_step = 'A2' to_step = 'A4' )
+  ( from_step = 'A3' to_step = 'A5' )
+  ( from_step = 'A4' to_step = 'A6' )
+  ( from_step = 'A5' to_step = 'A6' ) ).
+Output: 
+The method should return the total duration of the production process (longest path):
+" Expected output: 7

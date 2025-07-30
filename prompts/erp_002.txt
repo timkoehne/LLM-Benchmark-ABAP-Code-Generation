@@ -1,0 +1,22 @@
+Create an ABAP class with a static method that calculates the number of direct subordinates for a given supervisor based on input data.
+Use this database:
+define table zorg_structure {
+    key employee_id   : abap.char(20) not null;
+    key supervisor_id : abap.char(20) not null;
+}
+
+Input:
+supervisor_id type char20
+Output:
+amount type i
+
+Example:
+Input:
+DATA(lt_org_data) = VALUE zorg_hierarchy( 
+  ( employee_id = 'E1' supervisor_id = 'M1' )
+  ( employee_id = 'E2' supervisor_id = 'M1' )
+  ( employee_id = 'E3' supervisor_id = 'M2' )
+  ( employee_id = 'M1' supervisor_id = 'CEO' )
+  ( employee_id = 'M2' supervisor_id = 'CEO' ) ).
+Output:
+DATA(lv_result) = zcl_example=>count_subordinates( iv_supervisor_id = 'M1' ). => 2

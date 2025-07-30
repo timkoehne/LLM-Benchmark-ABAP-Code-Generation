@@ -1,0 +1,23 @@
+Implement a global ABAP class with a static method that determines and returns the name of the company’s CEO from information stored this database table:
+define table zemp_master {
+  key employee_id : abap.char(20) not null;
+  name : abap.char(80);
+}
+define table zorg_structure {
+    key employee_id   : abap.char(20) not null;
+    key supervisor_id : abap.char(20) not null;
+}
+Each employee appears at most once in ZORG_STRUCTURE.
+Every person except the CEO has exactly one supervisor. The CEO is the only person whose EMPLOYEE_ID is not listed in any SUPERVISOR_ID column value.
+If there is no clear CEO (e.g. no employees, no supervisor, circular structure) return nothing.
+
+Example:
+" --- Inserting test data
+INSERT zemp_master FROM TABLE VALUE #(
+  ( employee_id = 'A' name = 'Alice' )
+  ( employee_id = 'B' name = 'Bob'   ) ).
+INSERT zorg_structure FROM TABLE VALUE #(
+  ( employee_id = 'B' supervisor_id = 'A' ) ).
+" --- CEO lookup 
+DATA(lv_ceo_name) = zcl_find_ceo=>find_ceo_name( ).
+WRITE: / 'CEO:', lv_ceo_name.   " → Alice

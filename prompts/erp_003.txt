@@ -1,0 +1,26 @@
+Write an abap class with a static method that determines the management chain of an employee in a hierarchical organization. 
+The method should return a list of manager IDs starting from the direct manager of the given employee up to the top-level manager (e.g., CEO).
+Use this database:
+define table zorg_structure {
+    key employee_id   : abap.char(20) not null;
+    key supervisor_id : abap.char(20) not null;
+}
+
+Input: 
+employee_id type char20
+Output: 
+supervisor_ids type stringtab
+
+Example:
+Input:
+DATA(zorg_data) = VALUE STANDARD TABLE OF zorg_hierarchy WITH EMPTY KEY (
+  ( employee_id = 'A' manager_id = 'B' )
+  ( employee_id = 'B' manager_id = 'C' )
+  ( employee_id = 'C' manager_id = 'D' )
+  ( employee_id = 'D' manager_id = 'CEO' )
+). 
+INSERT zorg_hierarchy FROM TABLE @zorg_data.
+Output: 
+find_management_chain( iv_employee_id = 'A' ) => ['B', 'C', 'D', 'CEO']
+find_management_chain( iv_employee_id = 'C' ) => ['D', 'CEO']
+find_management_chain( iv_employee_id = 'CEO' ) => []

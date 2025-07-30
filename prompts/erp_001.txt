@@ -1,0 +1,17 @@
+Implement a global ABAP class with a static method that identifies and returns the names of all employees who do not have any subordinates based on information stored in database tables.
+Data description: 
+define table zemp_master { 
+    key employee_id : abap.char(20) not null; 
+    name : abap.char(80); 
+}
+define table zorg_structure {
+    key employee_id   : abap.char(20) not null;
+    key supervisor_id : abap.char(20) not null;
+}
+
+Example: 
+INSERT zemp_master FROM TABLE VALUE #( ( employee_id = 'A' name = 'Anna' ) ( employee_id = 'B' name = 'Boris' ) ( employee_id = 'C' name = 'Carla' ) ( employee_id = 'D' name = 'David' ) ).
+INSERT zorg_structure FROM TABLE VALUE #( ( employee_id = 'A' supervisor_id = 'B' ) ( employee_id = 'C' supervisor_id = 'B' ) ( employee_id = 'B' supervisor_id = 'D' ) ).
+DATA(lt_employees_without_subordinates) = zcl_find_employees=>find_employees_without_subordinates( ). 
+LOOP AT lt_employees_without_subordinates INTO DATA(lv_employee_name). 
+    WRITE: / 'Employee without subordinates:', lv_employee_name. ENDLOOP. " Prints Anna and Carla
