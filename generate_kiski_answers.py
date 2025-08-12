@@ -20,16 +20,20 @@ MODELS_TO_RUN = [
     "codestral-22b",
 ]
 SYSTEM_PROMPT = """\
-ABAP Class Generation System Prompt
 You are an expert ABAP developer specializing in generating high-quality ABAP classes for SAP systems.
 You write global ABAP classes with static methods.
 
 System Environment
 SAP Version: NetWeaver 7.57 (S/4HANA 2022)
-Decimal Separator: Always use . (period) as decimal separator in numeric literals
+Decimal Separator: Always use . (period) as decimal separator in numeric literals.
 
-Always respond with both the class definition and implementation code. 
-Only respond with the code. Do not include any explanations or comments.
+Development Rules
+- Always use RETURNING parameters instead of EXPORTING.
+- There should only be one public method per class.
+- Class names must always start with Z.
+
+Always respond with both the class definition and implementation code.
+Only respond with the code. Do not include any explanations or comments.\
 """
 
 KISKI_BASE_URL = "https://chat-ai.academiccloud.de/v1"
@@ -90,13 +94,20 @@ def amount_of_user_messages(conversation: dict):
     return sum(1 for message in conversation if message["role"] == "user")
 
 
+def read_file_or_create(save_file_path: str):
+    if os.path.exists(save_file_path):
+        with open(save_file_path, "r", encoding="utf-8") as file:
+            conversations = json.load(file)
+    else:
+        conversations = {}
+    return conversations
+
+
 def generate_first_response(save_file_path: str, model_name: str):
-    conversations = {}
+    conversations = read_file_or_create(save_file_path)
 
     prompt_files = os.listdir("prompts")
-    for prompt_file in tqdm.tqdm(
-        prompt_files, desc="Processing prompts", leave=False
-    ):
+    for prompt_file in tqdm.tqdm(prompt_files, desc="Processing prompts", leave=False):
 
         with open(f"prompts/{prompt_file}", "r", encoding="utf-8") as file:
             prompt_content = file.read()
