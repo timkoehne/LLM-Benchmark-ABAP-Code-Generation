@@ -89,8 +89,8 @@ def ask_kiski(model_name: str, chat_history: Iterable[ChatCompletionMessageParam
                 time.sleep(retry_delay)
 
 
-def amount_of_user_messages(conversation: dict):
-    return sum(1 for message in conversation if message["role"] == "user")
+def amount_of_llm_responses(conversation: dict):
+    return sum(1 for message in conversation if message["role"] == "assistant")
 
 
 def read_file_or_create(save_file_path: str):
@@ -132,7 +132,7 @@ def generate_first_response(save_file_path: str, model_name: str):
         json.dump(conversations, f, ensure_ascii=False, indent=4)
 
 
-def generate_next_response(save_file_path: str, model_name: str):
+def generate_next_response(response_number: int, save_file_path: str, model_name: str):
     with open(save_file_path, "r", encoding="utf-8") as file:
         data = json.load(file)
 
@@ -145,6 +145,8 @@ def generate_next_response(save_file_path: str, model_name: str):
             leave=False,
             total=len(conversations),
         ):
+            if amount_of_llm_responses(conversation) >= response_number:
+                continue
             if conversation[-1]["content"] == "The unit tests were successful.":
                 continue
 
@@ -161,4 +163,4 @@ def generate_next_response(save_file_path: str, model_name: str):
 if __name__ == "__main__":
     for model in tqdm.tqdm(MODELS_TO_RUN, desc="Models"):
         # generate_first_response(f"{model}.json", model)
-        generate_next_response(f"{model}.json", model)
+        generate_next_response(4, f"{model}.json", model)
