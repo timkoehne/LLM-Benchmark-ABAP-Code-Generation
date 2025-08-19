@@ -70,7 +70,7 @@ def ask_kiski(model_name: str, chat_history: Iterable[ChatCompletionMessageParam
     time_last_request = time.time()
 
     max_retries = 5
-    retry_delay = 10
+    retry_delay = 60
 
     for attempt in range(max_retries):
         try:
@@ -163,4 +163,4 @@ def generate_next_response(response_number: int, save_file_path: str, model_name
 if __name__ == "__main__":
     for model in tqdm.tqdm(MODELS_TO_RUN, desc="Models"):
         # generate_first_response(f"{model}.json", model)
-        generate_next_response(4, f"{model}.json", model)
+        generate_next_response(6, f"{model}.json", model)
