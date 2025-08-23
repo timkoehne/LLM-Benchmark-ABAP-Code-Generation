@@ -6,12 +6,6 @@ import xml.etree.ElementTree as ET
 import re
 import tqdm
 
-MODELS_TO_RUN = [
-    "llama-3.3-70b-instruct",
-    "qwen2.5-coder-32b-instruct",
-    "codestral-22b",
-]
-
 
 def get_unittest_src(unittest_file: str):
     with open(unittest_file, "r") as file:
@@ -42,7 +36,7 @@ def class_find_method_calls(client: AdtClient, class_name: str):
     return method_names
 
 
-def build_unittest_src(class_name: str, unittest_file: str):
+def build_unittest_src(client: AdtClient, class_name: str, prompt_file: str, chat):
     default_class_name = f"z_humaneval_{str.zfill(prompt_file[:-4], 3)}"
     unittest_file = f"abap_unittests/{default_class_name}_test.abap"
 
@@ -62,7 +56,7 @@ def build_unittest_src(class_name: str, unittest_file: str):
         return ""
 
 
-def run_unit_tests(client: AdtClient, class_uri: str):
+def run_unit_tests(client: AdtClient, class_uri: str, chat):
     result = client.run_unit_test(class_uri)
 
     if len(result) > 0:
@@ -80,7 +74,7 @@ def run_unit_tests(client: AdtClient, class_uri: str):
     return success
 
 
-def create_test_class_include(client: AdtClient, class_name: str):
+def create_test_class_include(client: AdtClient, class_name: str, class_uri: str):
     try:
         lock_handle: str = client.lock(class_uri)
         client.create_test_class_include(class_name, lock_handle)
@@ -88,7 +82,7 @@ def create_test_class_include(client: AdtClient, class_name: str):
         client.unlock(class_uri, lock_handle)
 
 
-def syntax_check(client: AdtClient, class_uri: str, src: str) -> bool:
+def syntax_check(client: AdtClient, class_uri: str, src: str, chat) -> bool:
     syntaxcheck_results = client.syntax_check(class_uri, class_uri, src)
     if len(syntaxcheck_results) > 0:
         add_to_chat(
@@ -101,7 +95,7 @@ def syntax_check(client: AdtClient, class_uri: str, src: str) -> bool:
     return success
 
 
-def syntax_check_unittest(client: AdtClient, class_uri: str, src: str) -> bool:
+def syntax_check_unittest(client: AdtClient, class_uri: str, src: str, chat) -> bool:
     syntaxcheck_results = client.syntax_check(class_uri, class_uri, src)
     if len(syntaxcheck_results) > 0:
         add_to_chat(
@@ -114,7 +108,7 @@ def syntax_check_unittest(client: AdtClient, class_uri: str, src: str) -> bool:
     return success
 
 
-def create_class(client: AdtClient, class_name: str) -> bool:
+def create_class(client: AdtClient, class_name: str, chat) -> bool:
     try:
         client.create(
             object_type="CLAS/OC",
@@ -139,6 +133,7 @@ def set_source(
     client: AdtClient,
     class_uri: str,
     src: str,
+    chat,
     suffix: Literal["/source/main", "/includes/testclasses"] = "/source/main",
 ):
     try:
@@ -160,7 +155,7 @@ def set_source(
     return success
 
 
-def activate_class(client: AdtClient, class_uri: str) -> bool:
+def activate_class(client: AdtClient, class_uri: str, chat) -> bool:
     try:
         client.activate(class_uri, class_uri)
         success = True
@@ -242,7 +237,7 @@ def add_to_chat(chat, content):
     )
 
 
-if __name__ == "__main__":
+def run_abap_interaction(model_name: str):
     client: AdtClient = AdtClient(
         sap_host="http://localhost:50000",
         username="DEVELOPER",
@@ -252,76 +247,89 @@ if __name__ == "__main__":
     )
     client.login()
 
-    for model_name in tqdm.tqdm(MODELS_TO_RUN, desc=f"Processing LLMs"):
-        filename = f"{model_name}.json"
-        with open(filename, "r") as file:
-            prompt_files = json.load(file)
-        for prompt_file, chats in tqdm.tqdm(
-            prompt_files.items(), "Processing prompts", leave=False
-        ):
+    filename = f"{model_name.replace(":", "_")}.json"
+    with open(filename, "r", encoding="utf-8") as file:
+        prompt_files = json.load(file)
+    for prompt_file, chats in tqdm.tqdm(
+        prompt_files.items(), "Processing prompts", leave=False
+    ):
 
-            for chat in tqdm.tqdm(chats, desc=f"Processing {prompt_file}", leave=False):
+        for chat in tqdm.tqdm(chats, desc=f"Processing {prompt_file}", leave=False):
 
-                if chat[-1]["content"] == "The unit tests were successful.":
-                    continue
+            if chat[-1]["role"] == "user":
+                continue
+            if chat[-1]["content"] == "The unit tests were successful.":
+                continue
 
-                skip_remaining_steps = False
-                last_message = chat[-1]
-                src = last_message["content"]
-                class_name = src.split(" ")[1].strip(".")
+            skip_remaining_steps = False
+            last_message = chat[-1]
+            src = last_message["content"]
+
+            match_class_name = re.match(
+                r"CLASS\s+(\w+)", src, re.MULTILINE | re.IGNORECASE
+            )
+            if match_class_name:
+                class_name = match_class_name.group(1)
                 class_uri = f"/sap/bc/adt/oo/classes/{class_name}"
+            else:
+                add_to_chat(
+                    chat,
+                    f"Class name not found.",
+                )
+                skip_remaining_steps = True
 
-                success = create_class(client, class_name)
+            if not skip_remaining_steps:
+                success = create_class(client, class_name, chat)
+                if not success:
+                    skip_remaining_steps = True
+
+            if not skip_remaining_steps:
+                success = syntax_check(client, class_uri, src, chat)
+                if not success:
+                    skip_remaining_steps = True
+
+            if not skip_remaining_steps:
+                success = set_source(client, class_uri, src, chat)
+                if not success:
+                    skip_remaining_steps = True
+
+            if not skip_remaining_steps:
+                success = activate_class(client, class_uri, chat)
+                if not success:
+                    skip_remaining_steps = True
+
+            if not skip_remaining_steps:
+                create_test_class_include(client, class_name, class_uri)
+                unittest_src = build_unittest_src(client, class_name, prompt_file, chat)
+                if unittest_src == "":
+                    skip_remaining_steps = True
+
+                success = syntax_check_unittest(
+                    client, class_uri + "/includes/testclasses", unittest_src, chat  # type: ignore
+                )
                 if not success:
                     skip_remaining_steps = True
 
                 if not skip_remaining_steps:
-                    success = syntax_check(client, class_uri, src)
-                    if not success:
-                        skip_remaining_steps = True
-
-                if not skip_remaining_steps:
-                    success = set_source(client, class_uri, src)
-                    if not success:
-                        skip_remaining_steps = True
-
-                if not skip_remaining_steps:
-                    success = activate_class(client, class_uri)
-                    if not success:
-                        skip_remaining_steps = True
-
-                if not skip_remaining_steps:
-                    create_test_class_include(client, class_name)
-                    unittest_src = build_unittest_src(class_name, prompt_file)
-                    if unittest_src == "":
-                        skip_remaining_steps = True
-
-                    success = syntax_check_unittest(
-                        client, class_uri + "/includes/testclasses", unittest_src
+                    success = set_source(
+                        client, class_uri, unittest_src, chat, "/includes/testclasses"
                     )
+                    success = True
                     if not success:
                         skip_remaining_steps = True
 
-                    if not skip_remaining_steps:
-                        success = set_source(
-                            client, class_uri, unittest_src, "/includes/testclasses"
-                        )
-                        success = True
-                        if not success:
-                            skip_remaining_steps = True
+                if not skip_remaining_steps:
+                    success = activate_class(client, class_uri, chat)
+                    if not success:
+                        skip_remaining_steps = True
 
-                    if not skip_remaining_steps:
-                        success = activate_class(client, class_uri)
-                        if not success:
-                            skip_remaining_steps = True
+                if not skip_remaining_steps:
+                    success = run_unit_tests(client, class_uri, chat)
 
-                    if not skip_remaining_steps:
-                        success = run_unit_tests(client, class_uri)
+            try:
+                delete_class(client, class_uri)
+            except Exception as e:
+                pass
 
-                try:
-                    delete_class(client, class_uri)
-                except Exception as e:
-                    pass
-
-            with open(filename, "w") as file:
-                file.write(json.dumps(prompt_files, indent=4, ensure_ascii=False))
+        with open(filename, "w", encoding="utf-8") as file:
+            file.write(json.dumps(prompt_files, indent=4, ensure_ascii=False))
