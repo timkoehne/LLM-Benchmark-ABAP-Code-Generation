@@ -1,130 +1,61 @@
 import json
+import os
 import re
 from typing import Dict, List
 from matplotlib import pyplot as plt
 from matplotlib.ticker import PercentFormatter
 import numpy as np
+import pandas as pd
 
-MODELS_TO_RUN = [
-    "llama-3.3-70b-instruct",
-    "qwen2.5-coder-32b-instruct",
-    "codestral-22b",
-    "qwen3-coder",
-    "gpt-oss_20b", 
-    "gpt-oss_120b" 
-]
+from abap_errors import Error, ERRORS_BY_CATEGORY
+from generate_llm_answers import REPETITIONS
+import llms
+
+MODELS_TO_RUN = [llm["name"].replace(":", "_") for llm in llms.MODELS_TO_RUN]
+NUM_PROMPTS = len(os.listdir("prompts/"))
 
 RESULTS_FILE = "analyse_results/results.json"
 SYNTAX_ERROR_FILE = "analyse_results/syntax_errors.json"
 
 
-class Error:
-    def __init__(self, name: str, regex: str, entries: List[str] = []) -> None:
-        self.name: str = name
-        self.regex: str = regex
-        self.entries: List[str] = entries
-
-
-SYNTAX_ERROR_TYPES = [
-    Error("Unable to interpret x.", r'Unable to interpret ".*"\.'),
-    Error("The statement x is unexpected.", r"The statement .* is unexpected"),
-    Error("type x is unknown.", r"type \".*\" is unknown"),
-    Error("Field x is unknown.", r"Field \".*\" is unknown."),
-    Error("x is not an internal table.", r"\".*\" is not an internal table."),
-    Error("x cannot be modified.", r"\".*\" cannot be modified."),
-    Error("x is not a constant.", r"\".*\" is not a constant."),
-    Error(
-        "x is missing between y and z.",
-        r"\".*\" is missing between \".*\" and \".*\".",
-    ),
-    Error("Class statement PUBLIC is missing.", r"The addition \"PUBLIC\""),
-    Error("A x parameter must be fully typed.", r"A .* parameter must be fully typed."),
-    Error("The x does not have a structure.", r"The .* does not have a structure"),
-    Error("The statement ended unexpectedly.", r"The statement .* ended unexpectedly."),
-    Error(
-        "Multiline literal are not allowed.",
-        r"Literals across more than one line are not allowed.",
-    ),
-    Error(
-        "Invalid line break in string template.",
-        r"Invalid line break in string template.",
-    ),
-    Error(
-        "Invalid expression limiter in string template.",
-        r"Invalid expression limiter .* in string template.",
-    ),
-    Error(
-        "The name is longer than the allowed 30 characters.",
-        r"The name \".*\" is longer than the allowed 30 characters.",
-    ),
-    Error(
-        "Method is unknown or PROTECTED or PRIVATE.",
-        r"Method \".*\" is unknown or PROTECTED or PRIVATE.",
-    ),
-    Error("x is not valid.", r".* is not valid."),
-    Error("x expected, not y.", r".* expected, not .*"),
-    Error(
-        "Returning parameters must be passed as value.",
-        r"RETURNING parameters must be specified to be passed as VALUE().",
-    ),
-    Error(
-        "Text literal is too long.",
-        r"The text literal .* is longer than 255 characters. Check whether it ends correctly.",
-    ),
-    Error(
-        "The method does not have a returning parameter.",
-        r"The method .* does not have a RETURNING parameter",
-    ),
-    Error(
-        "The generic types cannot be specified in returning parameters.",
-        r"The generic types .* cannot be specified in RETURNING parameters.",
-    ),
-    Error("Method does not exist.", r"Method .* does not exist."),
-    Error(
-        "x must be a character-like data object.",
-        r"must be a character-like data object \(data type C, N, D, T, or STRING\)\.",
-    ),
-    Error(
-        "Type definition can only be specified once.",
-        r"The addition \"... TYPE type\" can only be specified once.",
-    ),
-    Error("x expected after y", r".* expected after .*"),
-    Error("Other", r".*"),
-]
-
-
-def categorize_errors():
+def categorize_errors() -> Dict[str, Dict[str, List[str]]]:
     results = {
-        "The syntax check failed": [],
-        "The class could not be created": [],
-        "The unit tests were successful.": [],
-        "The unit test failed": [],
-        "The unittest syntax check failed": [],
-        "The source code could not be set": [],
-        "There should only be the one public method.": [],
-        "Class name not found.": [],
-        "other": [],
-        
+        model: {
+            "The syntax check failed": [],
+            "The class could not be created": [],
+            "The unit tests were successful.": [],
+            "The unit test failed": [],
+            "The unittest syntax check failed": [],
+            "The source code could not be set": [],
+            "There should only be the one public method.": [],
+            "Class name not found.": [],
+            "other": [],
+        }
+        for model in MODELS_TO_RUN
     }
 
     for model_name in MODELS_TO_RUN:
         filename = f"{model_name}.json"
+        model_results = results[model_name]
 
         with open(filename, "r", encoding="utf-8") as file:
             prompt_files = json.load(file)
             for prompt_file, chats in prompt_files.items():
                 for chat in chats:
-                    last_message = chat[-1]
-                    if last_message["role"] == "user":
-                        last_message = last_message["content"]
-                        added = False
-                        for key in results:
-                            if last_message.startswith(key):
-                                results[key].append(last_message)
-                                added = True
+                    # last_message = chat[-1]
+                    for message in chat[2:]:
+                        if message["role"] == "user":
+                            message_text = message["content"]
+                            # if last_message["role"] == "user":
+                            #     last_message = last_message["content"]
+                            added = False
+                            for key in model_results:
+                                if message_text.startswith(key):
+                                    model_results[key].append(message_text)
+                                    added = True
 
-                        if not added:
-                            results["other"].append(last_message)
+                            if not added:
+                                model_results["other"].append(message_text)
 
     with open(RESULTS_FILE, "w", encoding="utf-8") as file:
         file.write(json.dumps(results, indent=4, ensure_ascii=False))
@@ -132,30 +63,52 @@ def categorize_errors():
     return results
 
 
-def analyse_syntax_error(results: Dict):
-    runs = [eval(m[m.index("\n") + 1 :]) for m in results["The syntax check failed"]]
-
-    errors = [e for msgs in runs for e in msgs if e["type"] == "E"]
-    warnings = [w for msgs in runs for w in msgs if w["type"] == "W"]
-
-
-    print(f"There are {len(errors)} errors")
-    print(f"There are {len(warnings)} warnings")
+def analyse_syntax_error(
+    results: Dict[str, Dict[str, List[str]]],
+) -> Dict[str, Dict[str, Dict[str, List[str]]]]:
 
     syntax_errors = {}
-    for error_type in SYNTAX_ERROR_TYPES:
-        syntax_errors[error_type.name] = []
+    for model_name in MODELS_TO_RUN:
+        runs = [
+            eval(m[m.index("\n") + 1 :])
+            for m in results[model_name]["The syntax check failed"]
+        ]
 
-    for error in errors:
-        for error_type in SYNTAX_ERROR_TYPES:
-            if re.search(error_type.regex, error["short_text"], re.IGNORECASE) != None:
-                syntax_errors[error_type.name].append(error["short_text"])
-                break
+        errors = [e for msgs in runs for e in msgs if e["type"] == "E"]
+        warnings = [w for msgs in runs for w in msgs if w["type"] == "W"]
+
+        print(
+            f"For {model_name} there are {len(errors)} errors and {len(warnings)} warnings."
+        )
+
+        model_syntax_errors = {}
+        for error_category_name, error_category in ERRORS_BY_CATEGORY.items():
+            model_syntax_errors[error_category_name] = {}
+            for error_type in error_category:
+                model_syntax_errors[error_category_name][error_type.name] = []
+
+        for error in errors:
+            found = False
+            for error_category_name, error_category in ERRORS_BY_CATEGORY.items():
+                for error_type in error_category:
+                    if (
+                        re.search(error_type.regex, error["short_text"], re.IGNORECASE)
+                        != None
+                    ):
+                        model_syntax_errors[error_category_name][
+                            error_type.name
+                        ].append(error["short_text"])
+                        found = True
+                        break
+                    if found:
+                        break
+        syntax_errors[model_name] = model_syntax_errors
 
     with open(SYNTAX_ERROR_FILE, "w", encoding="utf-8") as file:
         file.write(json.dumps(syntax_errors, indent=4, ensure_ascii=False))
 
-    return runs
+    return syntax_errors
+
 
 def analyse_success_by_round() -> Dict[str, List[int]]:
     successes = {}
@@ -171,9 +124,12 @@ def analyse_success_by_round() -> Dict[str, List[int]]:
                     for msg_num, msg in enumerate(user_responses):
                         if msg["content"] == "The unit tests were successful.":
                             successes[model_name][msg_num] += 1
-                            
-    cumulative_data = {model: list(np.cumsum(values)) for model, values in successes.items()}
-    return cumulative_data 
+
+    cumulative_data = {
+        model: list(np.cumsum(values)) for model, values in successes.items()
+    }
+    return cumulative_data
+
 
 def visualize_success_by_round(success_data: Dict[str, List[int]]):
 
@@ -184,26 +140,33 @@ def visualize_success_by_round(success_data: Dict[str, List[int]]):
     x = np.arange(len(rounds))
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    
-    model_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b'][:num_models]
+
+    model_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b"][
+        :num_models
+    ]
 
     for idx, model in enumerate(models):
         model_data = success_data[model]
         bar_positions = x + (idx - (num_models - 1) / 2) * bar_width
-        ax.bar(bar_positions, model_data, width=bar_width, label=model, color=model_colors[idx])
+        ax.bar(
+            bar_positions,
+            model_data,
+            width=bar_width,
+            label=model,
+            color=model_colors[idx],
+        )
 
     ax.set_xticks(x)
-    ax.set_xticklabels([ str(r) for r in rounds ])
-    ax.set_xlabel('Rounds of Feedback')
-    ax.set_ylabel('Cumulative Successful Prompts')
-    ax.set_title('Cumulative Successful Code Generations by Feedback Round')
-    ax.legend(title='Model')
+    ax.set_xticklabels([str(r) for r in rounds])
+    ax.set_xlabel("Rounds of Feedback")
+    ax.set_ylabel("Cumulative Successful Prompts")
+    ax.set_title("Cumulative Successful Code Generations by Feedback Round")
+    ax.legend(title="Model")
 
     plt.tight_layout()
     plt.show()
-   
-   
-   
+
+
 def visualize_success_by_llm(success_data: Dict[str, List[int]]):
     models = list(success_data.keys())
     rounds = list(range(6))
@@ -212,30 +175,43 @@ def visualize_success_by_llm(success_data: Dict[str, List[int]]):
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    feedback_labels = ['No Feedback', '1 Feedback', '2 Feedbacks', '3 Feedbacks', '4 Feedbacks', '5 Feedbacks']
-    custom_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+    feedback_labels = [
+        "No Feedback",
+        "1 Feedback",
+        "2 Feedbacks",
+        "3 Feedbacks",
+        "4 Feedbacks",
+        "5 Feedbacks",
+    ]
+    custom_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b"]
 
     for i in rounds:
-        round_values = [(success_data[model][i]/1800 * 100) for model in models]
+        round_values = [
+            (success_data[model][i] / NUM_PROMPTS * REPETITIONS * 100)
+            for model in models
+        ]
         bar_positions = x + (i - 2.5) * bar_width
-        ax.bar(bar_positions, round_values, width=bar_width, label=feedback_labels[i], color=custom_colors[i])
+        ax.bar(
+            bar_positions,
+            round_values,
+            width=bar_width,
+            label=feedback_labels[i],
+            color=custom_colors[i],
+        )
 
     ax.set_xticks(x)
-    ax.set_xticklabels(models, rotation=15, ha='right')
-    ax.set_ylabel('Cumulative Successful Runs')
-    ax.yaxis.set_major_formatter(PercentFormatter()) 
-    ax.set_title('Cumulative Successful Code Generations by Feedback Round in Percent')
-    ax.legend(title='Feedback Rounds')
+    ax.set_xticklabels(models, rotation=15, ha="right")
+    ax.set_ylabel("Cumulative Successful Runs")
+    ax.yaxis.set_major_formatter(PercentFormatter())
+    ax.set_title("Cumulative Successful Code Generations by Feedback Round in Percent")
+    ax.legend(title="Feedback Rounds")
     plt.tight_layout()
     plt.show()
 
 
-
-
 if __name__ == "__main__":
-    results = categorize_errors()
-    analyse_syntax_error(results)
+    error_categories = categorize_errors()
+    syntax_errors = analyse_syntax_error(error_categories)
     successes = analyse_success_by_round()
     visualize_success_by_round(successes)
     visualize_success_by_llm(successes)
-    
