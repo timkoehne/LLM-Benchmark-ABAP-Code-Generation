@@ -110,6 +110,28 @@ def analyse_syntax_error(
     return syntax_errors
 
 
+def visualize_syntax_errors(data: Dict[str, Dict[str, Dict[str, List[str]]]]):
+    counts = []
+    for model, categories in data.items():
+        for category, errors in categories.items():
+            total_entries = sum(len(v) for v in errors.values())
+            counts.append(
+                {"Model": model, "Category": category, "Count": total_entries}
+            )
+
+    df = pd.DataFrame(counts)
+    pivot_df = df.pivot(index="Model", columns="Category", values="Count").fillna(0)
+    ax = pivot_df.plot(kind="bar", figsize=(10, 6))
+
+    plt.title("Error Counts per Category per Model")
+    plt.ylabel("Count")
+    plt.xlabel("Model")
+    plt.xticks(rotation=45)
+    plt.legend(title="Category")
+    plt.tight_layout()
+    plt.show()
+
+
 def analyse_success_by_round() -> Dict[str, List[int]]:
     successes = {}
     for model_name in MODELS_TO_RUN:
@@ -212,6 +234,7 @@ def visualize_success_by_llm(success_data: Dict[str, List[int]]):
 if __name__ == "__main__":
     error_categories = categorize_errors()
     syntax_errors = analyse_syntax_error(error_categories)
+    visualize_syntax_errors(syntax_errors)
     successes = analyse_success_by_round()
     visualize_success_by_round(successes)
     visualize_success_by_llm(successes)
