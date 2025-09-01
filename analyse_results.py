@@ -16,6 +16,13 @@ NUM_PROMPTS = len(os.listdir("prompts/"))
 
 RESULTS_FILE = "analyse_results/results.json"
 SYNTAX_ERROR_FILE = "analyse_results/syntax_errors.json"
+CLASS_CREATION_ERROR_FILE = "analyse_results/class_creation_errors.json"
+UNITTEST_RESULT_ERROR_FILE = "analyse_results/unittest_result_errors.json"
+UNITTEST_SYNTAX_ERROR_FILE = "analyse_results/unittest_syntax_errors.json"
+SOURCE_CODE_ERROR_FILE = "analyse_results/source_code_errors.json"
+PUBLIC_METHOD_ERROR_FILE = "analyse_results/public_method_errors.json"
+CLASS_NAME_NOT_FOUND_FILE = "analyse_results/class_name_errors.json"
+UNIT_TEST_SUCCESS_FILE = "analyse_results/successful.json"
 
 
 def categorize_errors() -> Dict[str, Dict[str, List[str]]]:
@@ -27,8 +34,8 @@ def categorize_errors() -> Dict[str, Dict[str, List[str]]]:
             "The unit test failed": [],
             "The unittest syntax check failed": [],
             "The source code could not be set": [],
-            "There should only be the one public method.": [],
-            "Class name not found.": [],
+            "There should only be the one public method": [],
+            "Class name not found": [],
             "other": [],
         }
         for model in MODELS_TO_RUN
@@ -118,15 +125,178 @@ def visualize_syntax_errors(data: Dict[str, Dict[str, Dict[str, List[str]]]]):
 
     df = pd.DataFrame(counts)
     pivot_df = df.pivot(index="Model", columns="Category", values="Count").fillna(0)
-    ax = pivot_df.plot(kind="bar", figsize=(10, 6))
+    relative_df = pivot_df.div(pivot_df.sum(axis=1), axis=0)
 
-    plt.title("Error Counts per Category per Model")
-    plt.ylabel("Count")
+    ax = relative_df.plot(kind="bar", figsize=(10, 6))
+    plt.title("Relative Error Distribution per Category per Model")
+    plt.ylabel("Proportion of Errors")
     plt.xlabel("Model")
+    plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
     plt.xticks(rotation=45)
     plt.legend(title="Category")
     plt.tight_layout()
     plt.show()
+
+
+def analyse_class_creation_error(
+    results: Dict[str, Dict[str, List[str]]],
+) -> Dict[str, List[Dict[str, str]]]:
+    creation_errors = {}
+
+    for model_name in MODELS_TO_RUN:
+        raw_errors = results[model_name]["The class could not be created"]
+        parsed_errors = []
+        for e in raw_errors:
+            try:
+                error_dict = eval(e[e.index("\n") + 1 :])
+                parsed_errors.append(error_dict)
+            except Exception as ex:
+                print(f"Failed to parse error for {model_name}: {e}")
+                print(ex)
+
+        print(f"For {model_name} there are {len(parsed_errors)} class creation errors.")
+
+        creation_errors[model_name] = parsed_errors
+
+    with open(CLASS_CREATION_ERROR_FILE, "w", encoding="utf-8") as file:
+        file.write(json.dumps(creation_errors, indent=4, ensure_ascii=False))
+
+    return creation_errors
+
+
+def analyse_unittest_result_error(
+    results: Dict[str, Dict[str, List[str]]],
+) -> Dict[str, List[List[Dict[str, str]]]]:
+    unit_test_errors = {}
+    for model_name in MODELS_TO_RUN:
+        raw_errors = results[model_name]["The unit test failed"]
+        parsed_errors = []
+
+        for e in raw_errors:
+            e = re.sub(r"<Element 'stack' at .*?>", "''", e)
+            try:
+                error_list = eval(e[e.index("\n") + 1 : e.rindex("\n")])
+                parsed_errors.append(error_list)
+            except Exception as ex:
+                print(f"Failed to parse unit test error for {model_name}: {e}")
+                print(ex)
+
+        print(
+            f"For {model_name} there are {sum(len(f) for f in parsed_errors)} unit test failures."
+        )
+        unit_test_errors[model_name] = parsed_errors
+
+    with open(UNITTEST_RESULT_ERROR_FILE, "w", encoding="utf-8") as file:
+        file.write(
+            json.dumps(unit_test_errors, indent=4, ensure_ascii=False, default=str)
+        )
+
+    return unit_test_errors
+
+
+def analyse_unittest_syntax_error(
+    results: Dict[str, Dict[str, List[str]]],
+) -> Dict[str, List[List[Dict[str, str]]]]:
+    unittest_syntax_errors: Dict[str, List[List[Dict[str, str]]]] = {}
+
+    for model_name in MODELS_TO_RUN:
+        raw_errors = results[model_name]["The unittest syntax check failed"]
+        parsed_errors: List[List[Dict[str, str]]] = []
+
+        for e in raw_errors:
+            try:
+                error_list = eval(e[e.index("\n") + 1 : e.rindex("\n")])
+                parsed_errors.append(error_list)
+            except Exception as ex:
+                print(f"Failed to parse unittest syntax error for {model_name}: {e}")
+                print(ex)
+
+        total = sum(len(f) for f in parsed_errors)
+        print(f"For {model_name} there are {total} unittest syntax errors.")
+        unittest_syntax_errors[model_name] = parsed_errors
+
+    with open(UNITTEST_SYNTAX_ERROR_FILE, "w", encoding="utf-8") as file:
+        file.write(
+            json.dumps(
+                unittest_syntax_errors, indent=4, ensure_ascii=False, default=str
+            )
+        )
+
+    return unittest_syntax_errors
+
+
+def analyse_source_code_set_error(
+    results: Dict[str, Dict[str, List[str]]],
+) -> Dict[str, List[str]]:
+    source_code_errors: Dict[str, List[str]] = {}
+
+    for model_name in MODELS_TO_RUN:
+        errors = results[model_name].get("The source code could not be set", [])
+        print(
+            f"For {model_name} there are {len(errors)} 'source code could not be set' errors."
+        )
+        source_code_errors[model_name] = errors
+
+    with open(SOURCE_CODE_ERROR_FILE, "w", encoding="utf-8") as file:
+        file.write(json.dumps(source_code_errors, indent=4, ensure_ascii=False))
+
+    return source_code_errors
+
+
+def analyse_public_method_error(
+    results: Dict[str, Dict[str, List[str]]],
+) -> Dict[str, List[str]]:
+
+    public_method_errors: Dict[str, List[str]] = {}
+
+    for model_name in MODELS_TO_RUN:
+        errors = results[model_name].get(
+            "There should only be the one public method", []
+        )
+        print(f"For {model_name} there are {len(errors)} 'public method' errors.")
+        public_method_errors[model_name] = errors
+
+    with open(PUBLIC_METHOD_ERROR_FILE, "w", encoding="utf-8") as file:
+        file.write(json.dumps(public_method_errors, indent=4, ensure_ascii=False))
+
+    return public_method_errors
+
+
+def analyse_class_name_not_found_error(
+    results: Dict[str, Dict[str, List[str]]],
+) -> Dict[str, List[str]]:
+    class_name_errors: Dict[str, List[str]] = {}
+
+    for model_name in MODELS_TO_RUN:
+        errors = results[model_name].get("Class name not found", [])
+        print(
+            f"For {model_name} there are {len(errors)} 'class name not found' errors."
+        )
+        class_name_errors[model_name] = errors
+
+    with open(CLASS_NAME_NOT_FOUND_FILE, "w", encoding="utf-8") as file:
+        file.write(json.dumps(class_name_errors, indent=4, ensure_ascii=False))
+
+    return class_name_errors
+
+
+def analyse_unit_test_success(
+    results: Dict[str, Dict[str, List[str]]],
+) -> Dict[str, List[str]]:
+
+    unit_test_success: Dict[str, List[str]] = {}
+
+    for model_name in MODELS_TO_RUN:
+        successes = results[model_name].get("The unit tests were successful.", [])
+        print(
+            f"For {model_name} there are {len(successes)} successful unit test messages."
+        )
+        unit_test_success[model_name] = successes
+
+    with open(UNIT_TEST_SUCCESS_FILE, "w", encoding="utf-8") as file:
+        file.write(json.dumps(unit_test_success, indent=4, ensure_ascii=False))
+
+    return unit_test_success
 
 
 def analyse_success_by_round() -> Dict[str, List[int]]:
@@ -150,6 +320,64 @@ def analyse_success_by_round() -> Dict[str, List[int]]:
     return cumulative_data
 
 
+def summarize_all_errors(
+    syntax_errors: Dict[str, dict],
+    class_creation_errors: Dict[str, list],
+    unit_test_errors: Dict[str, list],
+    unittest_syntax_errors: Dict[str, list],
+    source_code_errors: Dict[str, list],
+    public_method_errors: Dict[str, list],
+    class_name_errors: Dict[str, list],
+    unit_test_success: Dict[str, list],
+) -> Dict[str, Dict[str, int]]:
+    summary: Dict[str, Dict[str, int]] = {}
+
+    all_models = set(
+        list(syntax_errors.keys())
+        + list(class_creation_errors.keys())
+        + list(unit_test_errors.keys())
+        + list(unittest_syntax_errors.keys())
+        + list(source_code_errors.keys())
+        + list(public_method_errors.keys())
+        + list(class_name_errors.keys())
+        + list(unit_test_success.keys())
+    )
+
+    for model in all_models:
+        summary[model] = {
+            "syntax_errors": sum(
+                len(errors)
+                for category in syntax_errors.get(model, {}).values()
+                for errors in category.values()
+            ),
+            "class_creation_errors": len(class_creation_errors.get(model, [])),
+            "unit_test_failures": sum(
+                len(lst) for lst in unit_test_errors.get(model, [])
+            ),
+            "unittest_syntax_errors": sum(
+                len(lst) for lst in unittest_syntax_errors.get(model, [])
+            ),
+            "source_code_errors": len(source_code_errors.get(model, [])),
+            "public_method_errors": len(public_method_errors.get(model, [])),
+            "class_name_errors": len(class_name_errors.get(model, [])),
+            "unit_test_successes": len(unit_test_success.get(model, [])),
+        }
+
+    return summary
+
+
+def sum_summary(summary: dict) -> dict:
+    total_per_model = {}
+
+    for model, counts in summary.items():
+        total = 0
+        for key, value in counts.items():
+            total += value
+        total_per_model[model] = total
+
+    return total_per_model
+
+
 def visualize_success_by_round(success_data: Dict[str, List[int]]):
     models = list(success_data.keys())
     num_models = len(models)
@@ -164,7 +392,8 @@ def visualize_success_by_round(success_data: Dict[str, List[int]]):
     ]
 
     for idx, model in enumerate(models):
-        model_data = success_data[model]
+        model_data = [m / NUM_PROMPTS * REPETITIONS for m in success_data[model]]
+
         bar_positions = x + (idx - (num_models - 1) / 2) * bar_width
         ax.bar(
             bar_positions,
@@ -177,6 +406,7 @@ def visualize_success_by_round(success_data: Dict[str, List[int]]):
     ax.set_xticks(x)
     ax.set_xticklabels([str(r) for r in rounds])
     ax.set_xlabel("Rounds of Feedback")
+    ax.yaxis.set_major_formatter(PercentFormatter())
     ax.set_ylabel("Cumulative Successful Prompts")
     ax.set_title("Cumulative Successful Code Generations by Feedback Round")
     ax.legend(title="Model")
@@ -205,8 +435,7 @@ def visualize_success_by_llm(success_data: Dict[str, List[int]]):
 
     for i in rounds:
         round_values = [
-            (success_data[model][i] / NUM_PROMPTS * REPETITIONS * 100)
-            for model in models
+            (success_data[model][i] / NUM_PROMPTS * REPETITIONS) for model in models
         ]
         bar_positions = x + (i - 2.5) * bar_width
         ax.bar(
@@ -256,11 +485,12 @@ def prompt_classification() -> Dict[str, Dict[str, float]]:
     for model_name in MODELS_TO_RUN:
         for category, category_prompts in categories.items():
             current_value = relative_successrate[model_name][category]
-            relative_successrate[model_name][category] = round(current_value / (
-                len(category_prompts) * REPETITIONS
-            ), 4)
+            relative_successrate[model_name][category] = round(
+                current_value / (len(category_prompts) * REPETITIONS), 4
+            )
 
     return relative_successrate
+
 
 def visualize_prompt_classification_success(data: Dict[str, Dict[str, float]]):
     models = list(data.keys())
@@ -270,26 +500,52 @@ def visualize_prompt_classification_success(data: Dict[str, Dict[str, float]]):
 
     bar_width = 0.13
     x = np.arange(num_models)
-    plt.figure(figsize=(15,6))
+    plt.figure(figsize=(15, 6))
     for i, category in enumerate(categories):
         values = [data[model][category] for model in models]
-        plt.bar(x + i*bar_width, values, width=bar_width, label=category)
-    plt.xticks(x + bar_width*(num_categories-1)/2, models, rotation=45, ha='right')
-    plt.ylabel('Success Rate')
-    plt.title('Model Performance by Task Category')
-    plt.gca().yaxis.set_major_formatter(PercentFormatter(1)) 
+        plt.bar(x + i * bar_width, values, width=bar_width, label=category)
+    plt.xticks(
+        x + bar_width * (num_categories - 1) / 2, models, rotation=45, ha="right"
+    )
+    plt.ylabel("Success Rate")
+    plt.title("Model Performance by Task Category")
+    plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
     plt.legend()
     plt.tight_layout()
     plt.show()
 
 
-
 if __name__ == "__main__":
     error_categories = categorize_errors()
     syntax_errors = analyse_syntax_error(error_categories)
-    visualize_syntax_errors(syntax_errors)
-    successes = analyse_success_by_round()
-    visualize_success_by_round(successes)
-    visualize_success_by_llm(successes)
-    relative_prompt_success = prompt_classification()
-    visualize_prompt_classification_success(relative_prompt_success)
+    class_creation_errors = analyse_class_creation_error(error_categories)
+    unit_test_errors = analyse_unittest_result_error(error_categories)
+    unittest_syntax_errors = analyse_unittest_syntax_error(error_categories)
+    source_code_errors = analyse_source_code_set_error(error_categories)
+    public_method_errors = analyse_public_method_error(error_categories)
+    class_name_errors = analyse_class_name_not_found_error(error_categories)
+    unit_test_success = analyse_unit_test_success(error_categories)
+
+    summary = summarize_all_errors(
+        syntax_errors,
+        class_creation_errors,
+        unit_test_errors,
+        unittest_syntax_errors,
+        source_code_errors,
+        public_method_errors,
+        class_name_errors,
+        unit_test_success,
+    )
+    print(summary)
+
+    total_counts = sum_summary(summary)
+    print("Total counts across all models:")
+    for key, value in total_counts.items():
+        print(f"{key}: {value}")
+
+    # visualize_syntax_errors(syntax_errors)
+    # successes = analyse_success_by_round()
+    # visualize_success_by_round(successes)
+    # visualize_success_by_llm(successes)
+    # relative_prompt_success = prompt_classification()
+    # visualize_prompt_classification_success(relative_prompt_success)
