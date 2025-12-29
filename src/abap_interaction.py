@@ -38,7 +38,7 @@ def class_find_method_calls(client: AdtClient, class_name: str):
 
 def build_unittest_src(client: AdtClient, class_name: str, prompt_file: str, chat):
     default_class_name = f"z_humaneval_{str.zfill(prompt_file[:-4], 3)}"
-    unittest_file = f"abap_unittests/{default_class_name}_test.abap"
+    unittest_file = f"dataset/abap_unittests/{default_class_name}_test.abap"
 
     unittest_method_calls = unittest_find_method_calls(
         default_class_name, unittest_file

@@ -81,7 +81,7 @@ async def _first_response_requests(
     ) as thread_pbar:
         processed_count = 0
         for prompt_file in prompt_list:
-            with open(f"prompts/{prompt_file}", "r", encoding="utf-8") as file:
+            with open(f"dataset/prompts/{prompt_file}", "r", encoding="utf-8") as file:
                 prompt_content = file.read()
             for i in range(REPETITIONS):
                 if prompt_file not in conversations:

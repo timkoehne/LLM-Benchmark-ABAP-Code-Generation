@@ -6,7 +6,7 @@ import re
 
 load_dotenv()
 
-PROMPT_FILES = os.listdir("prompts")
+PROMPT_FILES = os.listdir("dataset/prompts")
 REPETITIONS = 10
 
 

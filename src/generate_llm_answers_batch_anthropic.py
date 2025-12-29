@@ -2,8 +2,10 @@ import json
 import os
 import time
 from typing import Dict, List
-from openai.types.chat import ChatCompletionMessageParam
-import openai
+import anthropic
+from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
+from anthropic.types.messages.batch_create_params import Request
+from anthropic.types import TextBlock
 
 from llms import RunnableModel
 from generate_llm_answers import (
@@ -16,48 +18,37 @@ from generate_llm_answers import (
 
 def _build_single_batch_request(
     model_info: RunnableModel, custom_id: str, conversation: List
-):
-    conversation_request = {
-        "custom_id": custom_id,
-        "method": "POST",
-        "url": "/v1/chat/completions",
-        "body": {
-            "model": model_info["name"],
-            "messages": conversation,
-            "temperature": model_info["temperature"],
-            "max_completion_tokens": model_info["max_tokens"],
-        },
-    }
+) -> Request:
+
+    conversation_request = Request(
+        custom_id=custom_id,
+        params=MessageCreateParamsNonStreaming(
+            model=model_info["name"],
+            max_tokens=model_info["max_tokens"],
+            temperature=model_info["temperature"],
+            system=conversation[0]["content"],
+            messages=conversation[1:],
+        ),
+    )
     return conversation_request
 
 
-def _upload_batch_input_file(client: openai.OpenAI, file_name: str):
-    batch_input_file = client.files.create(file=open(file_name, "rb"), purpose="batch")
-    return batch_input_file
-
-
-def _create_batch(client: openai.OpenAI, batch_input_file_id: str):
-    batch_info = client.batches.create(
-        input_file_id=batch_input_file_id,
-        endpoint="/v1/chat/completions",
-        completion_window="24h",
-        metadata={"description": "ABAP LLM Benchmark"},
-    )
+def _create_batch(client: anthropic.Anthropic, requests: List[Request]):
+    batch_info = client.messages.batches.create(requests=requests)
     return batch_info
 
 
-def _status_batch(client: openai.OpenAI, batch_id: str):
-    batch = client.batches.retrieve(batch_id)
+def _status_batch(client: anthropic.Anthropic, batch_id: str):
+    batch = client.messages.batches.retrieve(batch_id)
     return batch
 
 
-def _retrieve_batch(client: openai.OpenAI, file_content: str):
-    file_response = client.files.content(file_content)
-    return file_response.text
+def _retrieve_batch(client: anthropic.Anthropic, batch_id: str):
+    responses = [m for m in client.messages.batches.results(batch_id)]
+    return responses
 
 
 def _convert_to_json(save_file: str, batch_file: str, batch_response_file: str):
-
     result: Dict[str, List] = {
         prompt: [[] for repetition in range(REPETITIONS)] for prompt in PROMPT_FILES
     }
@@ -76,20 +67,19 @@ def _convert_to_json(save_file: str, batch_file: str, batch_response_file: str):
             if batch_entry["custom_id"] == batch_response["custom_id"]:
 
                 id: str = batch_entry["custom_id"]
-                prompt = id[1 : id.rindex("-R")]
+                prompt = id[1 : id.rindex("-R")] + ".txt"
                 repetition = int(id[id.rindex("-R") + 2 :])
 
-                messages = batch_entry["body"]["messages"]
-                new_message = batch_response["response"]["body"]["choices"][0][
-                    "message"
-                ]
+                system_prompt = {"role": "system", "content": batch_entry["params"]["system"]}
+                
+                messages = [system_prompt] + batch_entry["params"]["messages"]
+                new_message = batch_response["response"]
                 new_message = {
-                    "role": new_message["role"],
-                    "content": remove_code_blocks(new_message["content"]),
+                    "role": "assistant",
+                    "content": remove_code_blocks(new_message),
                 }
                 messages.append(new_message)
                 result[prompt][repetition] = messages
-
                 break
 
     with open(save_file, "w", encoding="utf-8") as file:
@@ -97,12 +87,12 @@ def _convert_to_json(save_file: str, batch_file: str, batch_response_file: str):
 
 
 def generate_next_response_batch(
-    client: openai.OpenAI,
+    client: anthropic.Anthropic,
     model_info: RunnableModel,
     save_file: str,
     save_file_batch: str,
 ):
-    conversations = []
+    conversations_requests: List[Request] = []
 
     current = {}
     with open(save_file, "r", encoding="utf-8") as file:
@@ -110,37 +100,36 @@ def generate_next_response_batch(
 
     for prompt_file in current:
         for i, repetition in enumerate(current[prompt_file]):
-            custom_id = f"P{prompt_file}-R{i}"
+            custom_id = f"P{prompt_file[:-4]}-R{i}"
             conversation = current[prompt_file][i]
             if conversation[-1]["content"] == "The unit tests were successful.":
                 continue
             conversation_request = _build_single_batch_request(
                 model_info, custom_id, conversation
             )
-            conversations.append(conversation_request)
+            conversations_requests.append(conversation_request)
 
     with open(save_file_batch, "w", encoding="utf-8") as file:
-        for line in conversations:
+        for line in conversations_requests:
             file.write(json.dumps(line, ensure_ascii=False) + "\n")
 
-    batch_input_file = _upload_batch_input_file(client, save_file_batch)
-    batch = _create_batch(client, batch_input_file.id)
+    batch = _create_batch(client, conversations_requests)
     return batch.id
 
 
 def generate_first_response_batch(
     client, model_info: RunnableModel, save_file_batch: str
 ) -> str:
-    conversations = []
+    conversations: List[Request] = []
     for prompt_file in PROMPT_FILES:
-        with open(f"prompts/{prompt_file}", "r", encoding="utf-8") as file:
+        with open(f"dataset/prompts/{prompt_file}", "r", encoding="utf-8") as file:
             prompt_content = file.read()
         for i in range(REPETITIONS):
-            conversation: List[ChatCompletionMessageParam] = [
+            conversation: List = [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt_content},
             ]
-            custom_id = f"P{prompt_file}-R{i}"
+            custom_id = f"P{prompt_file[:-4]}-R{i}"
             conversation_request = _build_single_batch_request(
                 model_info, custom_id, conversation
             )
@@ -150,13 +139,12 @@ def generate_first_response_batch(
         for line in conversations:
             file.write(json.dumps(line, ensure_ascii=False) + "\n")
 
-    batch_input_file = _upload_batch_input_file(client, save_file_batch)
-    batch = _create_batch(client, batch_input_file.id)
+    batch = _create_batch(client, conversations)
     return batch.id
 
 
 def wait_for_batch_and_save(
-    client: openai.OpenAI,
+    client: anthropic.Anthropic,
     batch_id: str,
     save_file: str,
     save_file_batch: str,
@@ -164,12 +152,31 @@ def wait_for_batch_and_save(
 ):
     while True:
         status = _status_batch(client, batch_id)
-        if status.status == "completed" or status.status == "cancelled":
+        # print(status)
+        if status.processing_status == "ended":
             break
         time.sleep(30)
-    output_file_id = status.output_file_id
-    if output_file_id:
-        content = _retrieve_batch(client, output_file_id)
+    results_url = status.results_url
+    if results_url:
+        content = _retrieve_batch(client, batch_id)
         with open(save_file_batch_response, "w", encoding="utf-8") as file:
-            file.write(content)
+            
+            failed = 0
+            successes = []
+            for entry in content:
+                if entry.result.type == "succeeded":
+                    successful_entry = {
+                        "custom_id": entry.custom_id,
+                        "response": " ".join(
+                            remove_code_blocks(c.text)
+                            for c in entry.result.message.content
+                            if isinstance(c, TextBlock)
+                        ),
+                    }
+                    successes.append(successful_entry)
+                    file.write(json.dumps(successful_entry, ensure_ascii=False) + "\n")
+                if entry.result.type != "succeeded":
+                    failed += 1
+                    print(f"request {entry.custom_id} failed")
+        if failed > 0: print(f"{failed} requests failed")
         _convert_to_json(save_file, save_file_batch, save_file_batch_response)
