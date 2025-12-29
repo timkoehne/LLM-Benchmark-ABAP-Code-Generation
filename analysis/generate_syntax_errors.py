@@ -14,12 +14,14 @@ def generate_syntax_errors():
     
     if os.path.basename(os.getcwd()) == "analysis":
         root_dir = ".."
-        output_file = "../syntax_errors.json"
+        data_dir = os.path.join(root_dir, "data")
+        output_file = "../data/syntax_errors.json"
     else:
         root_dir = "."
-        output_file = "syntax_errors.json"
+        data_dir = os.path.join(root_dir, "data")
+        output_file = "data/syntax_errors.json"
 
-    json_files = glob.glob(os.path.join(root_dir, "*.json"))
+    json_files = glob.glob(os.path.join(data_dir, "*.json"))
     
     results = {}
 

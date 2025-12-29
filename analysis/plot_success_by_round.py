@@ -128,7 +128,7 @@ def print_success_table(model_data: Dict[str, List[float]]):
         print(row)
 
 if __name__ == "__main__":
-    data, counts = get_model_data_from_csv('../results.csv')
+    data, counts = get_model_data_from_csv('../data/results.csv')
     if data:
         visualize_success_by_llm(data, counts)
         print_success_table(data)

@@ -16,7 +16,7 @@ from llms import API_PROVIDERS, MODELS_TO_RUN, RunnableModel
 def batch_openai(model_info: RunnableModel):
     api_provider = API_PROVIDERS[model_info["provider"]]
     client = openai.OpenAI(api_key=api_provider["api_key"])
-    save_file = f"{model_info["name"]}.json"
+    save_file = f"data/{model_info["name"]}.json"
     save_file_batch = f"{save_file[:-5]}_batch.jsonl"
     save_file_batch_response = save_file_batch[:-6] + "_response.jsonl"
 
@@ -41,7 +41,7 @@ def batch_openai(model_info: RunnableModel):
 def batch_anthropic(model_info: RunnableModel):
     api_provider = API_PROVIDERS[model_info["provider"]]
     client = anthropic.Anthropic(api_key=api_provider["api_key"])
-    save_file = f"{model_info["name"]}.json"
+    save_file = f"data/{model_info["name"]}.json"
     save_file_batch = f"{save_file[:-5]}_batch.jsonl"
     save_file_batch_response = save_file_batch[:-6] + "_response.jsonl"
 

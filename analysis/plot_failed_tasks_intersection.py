@@ -122,6 +122,6 @@ def visualize_failed_tasks_intersection(failed_task_ids: Dict[str, Dict[str, set
     print(f"Plot saved to {output_file}")
 
 if __name__ == "__main__":
-    failed_task_ids = get_failed_task_counts('../results.csv')
+    failed_task_ids = get_failed_task_counts('../data/results.csv')
     if failed_task_ids:
         visualize_failed_tasks_intersection(failed_task_ids)

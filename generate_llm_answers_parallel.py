@@ -120,7 +120,7 @@ async def _first_response_requests(
 async def generate_first_response(
     llm_client: openai.AsyncOpenAI, model_info: RunnableModel
 ):
-    save_file_path = f"{model_info["name"].replace(':', '_')}.json"
+    save_file_path = f"data/{model_info["name"].replace(':', '_')}.json"
     conversations: Dict[str, List] = read_file_or_create(save_file_path)
 
     total_requests = len(PROMPT_FILES) * REPETITIONS
@@ -254,7 +254,7 @@ async def generate_next_response(
     model_info: RunnableModel,
     response_number: int,
 ):
-    save_file_path = f"{model_info["name"].replace(':', '_')}.json"
+    save_file_path = f"data/{model_info["name"].replace(':', '_')}.json"
     with open(save_file_path, "r", encoding="utf-8") as file:
         data = json.load(file)
 

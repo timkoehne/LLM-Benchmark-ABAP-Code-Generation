@@ -19,7 +19,7 @@ def calculate_variance(kmf):
         return None
 
 def run_analysis():
-    file_path = '../results.csv'
+    file_path = '../data/results.csv'
     try:
         df = pd.read_csv(file_path, sep=';')
     except Exception as e:

@@ -5,8 +5,9 @@ import pandas as pd
 
 def consolidate_results():
     root_dir = ".."
+    data_dir = os.path.join(root_dir, "data")
 
-    json_files = glob.glob(os.path.join(root_dir, "*.json"))
+    json_files = glob.glob(os.path.join(data_dir, "*.json"))
     
     data = []
 
@@ -81,7 +82,8 @@ def consolidate_results():
                 data.append(row)
     df = pd.DataFrame(data)
     
-    classification_path = os.path.join(root_dir, "prompt_classification.csv")
+    classification_path = os.path.join(data_dir, "prompt_classification.csv")
+    print(f"Checking for classification at: {os.path.abspath(classification_path)}")
     if os.path.exists(classification_path):
         print(f"Loading classification from {classification_path}")
         try:
@@ -122,7 +124,7 @@ def consolidate_results():
     except:
         df = df.sort_values(by=['Model', 'Prompt', 'Repetition'])
 
-    output_path = os.path.join(root_dir, "results.csv")
+    output_path = os.path.join(data_dir, "results.csv")
     df.to_csv(output_path, sep=';', index=False)
     print(f"Successfully created {output_path} with {len(df)} rows.")
 

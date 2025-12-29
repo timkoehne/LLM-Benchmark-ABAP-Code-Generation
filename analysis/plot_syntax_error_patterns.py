@@ -7,7 +7,7 @@ from plot_style import COLORS, apply_plot_style
 
 apply_plot_style()
 
-def visualize_syntax_errors(json_path='../syntax_errors.json'):
+def visualize_syntax_errors(json_path='../data/syntax_errors.json'):
     with open(json_path, 'r') as f:
         raw_data = json.load(f)
     

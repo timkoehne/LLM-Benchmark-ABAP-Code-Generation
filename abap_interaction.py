@@ -247,7 +247,7 @@ def run_abap_interaction(model_name: str):
     )
     client.login()
 
-    filename = f"{model_name.replace(":", "_")}.json"
+    filename = f"data/{model_name.replace(':', '_')}.json"
     with open(filename, "r", encoding="utf-8") as file:
         prompt_files = json.load(file)
     for prompt_file, chats in tqdm.tqdm(

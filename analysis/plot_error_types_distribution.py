@@ -153,6 +153,6 @@ def visualize_combined_summary_errors(summary: dict):
     # plt.show()
 
 if __name__ == "__main__":
-    summary = get_error_summary_from_csv('../results.csv')
+    summary = get_error_summary_from_csv('../data/results.csv')
     if summary:
         visualize_combined_summary_errors(summary)

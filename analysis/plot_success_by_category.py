@@ -118,6 +118,6 @@ def visualize_prompt_classification_success(data: Dict[str, Dict[str, float]], c
     # plt.show()
 
 if __name__ == "__main__":
-    data, counts = get_category_data_from_csv('../results.csv')
+    data, counts = get_category_data_from_csv('../data/results.csv')
     if data:
         visualize_prompt_classification_success(data, counts)
