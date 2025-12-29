@@ -41,7 +41,7 @@ def _create_batch(client: openai.OpenAI, batch_input_file_id: str):
         input_file_id=batch_input_file_id,
         endpoint="/v1/chat/completions",
         completion_window="24h",
-        metadata={"description": "first gpt 5 test run"},
+        metadata={"description": "ABAP LLM Benchmark"},
     )
     return batch_info
 
@@ -51,8 +51,8 @@ def _status_batch(client: openai.OpenAI, batch_id: str):
     return batch
 
 
-def _retrieve_batch(client: openai.OpenAI, batch_id: str):
-    file_response = client.files.content(batch_id)
+def _retrieve_batch(client: openai.OpenAI, file_content: str):
+    file_response = client.files.content(file_content)
     return file_response.text
 
 
@@ -164,7 +164,6 @@ def wait_for_batch_and_save(
 ):
     while True:
         status = _status_batch(client, batch_id)
-        # print(status)
         if status.status == "completed" or status.status == "cancelled":
             break
         time.sleep(30)
