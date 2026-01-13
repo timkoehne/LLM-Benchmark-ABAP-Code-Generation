@@ -67,7 +67,7 @@ def visualize_combined_summary_errors(summary: dict):
     
     for model, errors in summary.items():
         combined = {
-            "class_creation": errors.get("class_creation_errors", 0) + errors.get("class_name_errors", 0),
+            "class_creation_errors": errors.get("class_creation_errors", 0) + errors.get("class_name_errors", 0),
             "syntax_errors": errors.get("syntax_errors", 0) + errors.get("source_code_errors", 0) + errors.get("public_method_errors", 0),
             "unit_test_errors": errors.get("unit_test_failures", 0) + errors.get("unittest_syntax_errors", 0),
         }
@@ -81,17 +81,17 @@ def visualize_combined_summary_errors(summary: dict):
             combined_summary[model] = {k: 0 for k in combined.keys()}
 
     df = pd.DataFrame(combined_summary).T 
-    df = df[["class_creation", "syntax_errors", "unit_test_errors"]]
+    df = df[["class_creation_errors", "syntax_errors", "unit_test_errors"]]
 
     available_models = df.index.tolist()
     
     desired_order = [
          "llama-3.3-70b-instruct",
-        "qwen2.5-coder-32b-instruct",
         "codestral-22b",
+        "qwen2.5-coder-32b-instruct",
+        "qwen3-coder",
         "gpt-oss_20b",
         "gpt-oss_120b",
-        "qwen3-coder",
         "gpt-5-2025-08-07",
         "claude-sonnet-4-20250514"
     ]

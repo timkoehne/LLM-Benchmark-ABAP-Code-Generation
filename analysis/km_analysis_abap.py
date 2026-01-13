@@ -44,6 +44,20 @@ def run_analysis():
     plt.figure(figsize=(12, 8))
     
     models = df['Model'].unique()
+    
+    desired_order = [
+        "llama-3.3-70b-instruct",
+        "codestral-22b",
+        "qwen2.5-coder-32b-instruct",
+        "qwen3-coder",
+        "gpt-oss_20b",
+        "gpt-oss_120b",
+        "gpt-5-2025-08-07",
+        "claude-sonnet-4-20250514"
+    ]
+    model_order = [m for m in desired_order if m in models]
+    remaining = [m for m in models if m not in model_order]
+    models = model_order + remaining
 
     print(f"Found {len(models)} models: {models}\n")
 

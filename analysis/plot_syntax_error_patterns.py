@@ -32,11 +32,11 @@ def visualize_syntax_errors(json_path='../data/syntax_errors.json'):
     available_models = df.index.tolist()
     desired_order = [
         "llama-3.3-70b-instruct",
-        "qwen2.5-coder-32b-instruct",
         "codestral-22b",
+        "qwen2.5-coder-32b-instruct",
+        "qwen3-coder",
         "gpt-oss_20b",
         "gpt-oss_120b",
-        "qwen3-coder",
         "gpt-5-2025-08-07",
         "claude-sonnet-4-20250514"
     ]
@@ -101,5 +101,5 @@ def visualize_syntax_errors(json_path='../data/syntax_errors.json'):
 if __name__ == "__main__":
     import os
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(current_dir, '../syntax_errors.json')
+    json_path = os.path.join(current_dir, '../data/syntax_errors.json')
     visualize_syntax_errors(json_path)
