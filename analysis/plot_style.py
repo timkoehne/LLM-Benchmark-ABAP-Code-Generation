@@ -30,3 +30,14 @@ def apply_plot_style():
         'grid.alpha': 0.3,
         'grid.linestyle': '--'
     })
+
+MODEL_ABBREVIATIONS = {
+    'llama-3.3-70b-instruct': 'Llama-33',
+    'codestral-22b': 'Code-22',
+    'qwen2.5-coder-32b-instruct': 'Qwen-25C',
+    'qwen3-coder': 'Qwen-3C',
+    'gpt-oss_20b': 'GPT-OSS20',
+    'gpt-oss_120b': 'GPT-OSS120',
+    'gpt-5-2025-08-07': 'GPT-5',
+    'claude-sonnet-4-20250514': 'Claude-S4'
+}

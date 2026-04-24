@@ -2,7 +2,7 @@ import pandas as pd
 from lifelines import KaplanMeierFitter
 import numpy as np
 import matplotlib.pyplot as plt
-from plot_style import COLORS, LINE_STYLES, apply_plot_style
+from plot_style import COLORS, LINE_STYLES, apply_plot_style, MODEL_ABBREVIATIONS
 
 apply_plot_style()
 
@@ -110,7 +110,7 @@ def run_analysis():
 
         if len(km_df) > 0:
             kmf = KaplanMeierFitter()
-            kmf.fit(km_df['duration'], km_df['event'], label=model)
+            kmf.fit(km_df['duration'], km_df['event'], label=MODEL_ABBREVIATIONS.get(model, model))
 
             print("\n--- Survival Table (Head) ---")
             print(kmf.event_table.head())

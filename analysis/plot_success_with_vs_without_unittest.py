@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from typing import Dict, Tuple
-from plot_style import COLORS, apply_plot_style
+from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS
 
 apply_plot_style()
 
@@ -143,7 +143,7 @@ def plot_comparison(success_normal: Dict[str, float], success_no_ut: Dict[str, f
         ax.text(bar.get_x() + bar.get_width() / 2, height + normal_errs[i] + 1, f'{height:.1f}%', ha='center', va='bottom', fontsize=9, rotation=0)
     
     ax.set_xticks(x)
-    ax.set_xticklabels(models, rotation=15, ha="right")
+    ax.set_xticklabels([MODEL_ABBREVIATIONS.get(m, m) for m in models], rotation=15, ha="right")
     ax.set_ylabel("Successful Code Generations")
     ax.yaxis.set_major_formatter(PercentFormatter(100))
     ax.set_title("Success Rate: Without Unit Test Improvement vs After 5 Feedback Rounds\n(with 95% Confidence Intervals)")

@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from typing import Dict, List
-from plot_style import COLORS, apply_plot_style
+from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS
 
 apply_plot_style()
 
@@ -120,7 +120,7 @@ def visualize_prompt_classification_success(data: Dict[str, Dict[str, float]], c
             error_kw={'elinewidth': 1, 'alpha': 0.7}
         )
         
-    plt.xticks(x + bar_width * (num_categories - 1) / 2, models, rotation=15, ha="right")
+    plt.xticks(x + bar_width * (num_categories - 1) / 2, [MODEL_ABBREVIATIONS.get(m, m) for m in models], rotation=15, ha="right")
     plt.ylabel("Success Rate")
     plt.title("Model Performance by Task Category (with 95% CIs)")
     plt.gca().yaxis.set_major_formatter(PercentFormatter(100))

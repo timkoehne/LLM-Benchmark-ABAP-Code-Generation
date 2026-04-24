@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Dict, List, Set, Tuple
-from plot_style import COLORS, apply_plot_style
+from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS
 
 apply_plot_style()
 
@@ -99,7 +99,7 @@ def plot_unsolved_counts(unsolved_prompts: Dict[str, Set[str]], models: List[str
         )
         
     ax.set_xticks(x)
-    ax.set_xticklabels(models, rotation=15, ha="right")
+    ax.set_xticklabels([MODEL_ABBREVIATIONS.get(m, m) for m in models], rotation=15, ha="right")
     ax.set_ylabel("Number of Unsolved Prompts")
     ax.set_title("Total Unsolved Prompts by Model (Never Succeeded in Any Repetition)")
     

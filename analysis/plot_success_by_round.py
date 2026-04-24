@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from typing import Dict, List
-from plot_style import COLORS, apply_plot_style
+from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS
 
 apply_plot_style()
 
@@ -120,7 +120,7 @@ def visualize_success_by_llm(model_data: Dict[str, List[float]], sample_counts: 
         )
 
     ax.set_xticks(x)
-    ax.set_xticklabels(models, rotation=15, ha="right")
+    ax.set_xticklabels([MODEL_ABBREVIATIONS.get(m, m) for m in models], rotation=15, ha="right")
     ax.set_ylabel("Cumulative Successful Runs")
     ax.yaxis.set_major_formatter(PercentFormatter(100))
     ax.set_title("Cumulative Successful Code Generations by Feedback Round in Percent\n(with 95% Confidence Intervals)")

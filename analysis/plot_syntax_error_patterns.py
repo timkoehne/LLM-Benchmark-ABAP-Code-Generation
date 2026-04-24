@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
-from plot_style import COLORS, apply_plot_style
+from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS
 
 apply_plot_style()
 
@@ -85,7 +85,7 @@ def visualize_syntax_errors(json_path='../data/syntax_errors.json'):
         )
 
     ax.set_xticks(x)
-    ax.set_xticklabels(models, rotation=15, ha="right")
+    ax.set_xticklabels([MODEL_ABBREVIATIONS.get(m, m) for m in models], rotation=15, ha="right")
     ax.set_xlabel("Models")
     ax.set_ylabel("Percentage of Errors")
     ax.yaxis.set_major_formatter(PercentFormatter(1))
