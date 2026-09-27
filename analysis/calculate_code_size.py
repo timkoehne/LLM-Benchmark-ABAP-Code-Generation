@@ -28,23 +28,10 @@ import glob
 import numpy as np
 import pandas as pd
 
-from plot_style import MODEL_ABBREVIATIONS
+from common import DATA_DIR, DATASET_DIR, MODEL_ABBREVIATIONS, MODEL_ORDER, SUCCESS, classify_feedback
 
-# Model row order (mirrors calculate_pass_rates.py / plot_style ordering).
-DESIRED_ORDER = [
-    "llama-3.3-70b-instruct",
-    "codestral-22b",
-    "qwen2.5-coder-32b-instruct",
-    "qwen3-coder",
-    "gpt-oss_20b",
-    "gpt-oss_120b",
-    "gpt-5-2025-08-07",
-    "claude-sonnet-4-20250514",
-]
 
-DATA_DIR = "../data"
-CANONICAL_DIR = "../dataset/abap_canonical_solution"
-SUCCESS_MARKER = "the unit tests were successful"
+CANONICAL_DIR = os.path.join(DATASET_DIR, "abap_canonical_solution")
 
 
 # --- code extraction -------------------------------------------------------
@@ -124,7 +111,7 @@ def passing_sources(model_json_path: str):
             for message in conversation:
                 role = message.get("role")
                 content = message.get("content", "")
-                if role == "user" and SUCCESS_MARKER in str(content).lower():
+                if role == "user" and classify_feedback(str(content)) == SUCCESS:
                     if prev_assistant is not None:
                         yield remove_code_blocks(prev_assistant)
                     break
@@ -165,7 +152,7 @@ def calculate_code_size():
           f"median SLOC {canon_median_sloc:.1f}")
 
     rows = []
-    for model in DESIRED_ORDER:
+    for model in MODEL_ORDER:
         path = os.path.join(DATA_DIR, f"{model}.json")
         if not os.path.exists(path):
             print(f"  WARNING: missing {path}, skipping")

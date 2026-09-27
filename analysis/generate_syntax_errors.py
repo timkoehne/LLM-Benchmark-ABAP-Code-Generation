@@ -1,30 +1,15 @@
 import json
 import os
 import glob
-import sys
 import re
 import ast
 
-# abap_errors.py lives in src/ since the repository cleanup.
-sys.path.append(
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
-)
-from abap_errors import ERRORS_BY_CATEGORY
+from common import DATA_DIR, FEEDBACK_SYNTAX_FAILED, SYNTAX_ERRORS_JSON
+from abap_errors import ERRORS_BY_CATEGORY  # in src/, put on the path by common
 
 def generate_syntax_errors():
-    root_dir = ".."
-    output_file = "../syntax_errors.json"
-    
-    if os.path.basename(os.getcwd()) == "analysis":
-        root_dir = ".."
-        data_dir = os.path.join(root_dir, "data")
-        output_file = "../data/syntax_errors.json"
-    else:
-        root_dir = "."
-        data_dir = os.path.join(root_dir, "data")
-        output_file = "data/syntax_errors.json"
-
-    json_files = glob.glob(os.path.join(data_dir, "*.json"))
+    output_file = SYNTAX_ERRORS_JSON
+    json_files = glob.glob(os.path.join(DATA_DIR, "*.json"))
     
     results = {}
 
@@ -57,9 +42,9 @@ def generate_syntax_errors():
                 for message in conversation:
                     if message["role"] == "user":
                         content_txt = message["content"]
-                        if "The syntax check failed with the following errors:" in content_txt:
+                        if FEEDBACK_SYNTAX_FAILED in content_txt:
                             try:
-                                error_list_str = content_txt.split("The syntax check failed with the following errors:\n")[-1]
+                                error_list_str = content_txt.split(f"{FEEDBACK_SYNTAX_FAILED}\n")[-1]
                                 error_list = ast.literal_eval(error_list_str)
                                 
                                 for error_item in error_list:

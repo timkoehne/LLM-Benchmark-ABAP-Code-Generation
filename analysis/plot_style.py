@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from common import Z_95
+
 COLORS = [
     '#A9D6E5',
     '#89C2D9',
@@ -32,19 +34,8 @@ def apply_plot_style():
         'grid.linestyle': '--'
     })
 
-MODEL_ABBREVIATIONS = {
-    'llama-3.3-70b-instruct': 'Llama-33',
-    'codestral-22b': 'Code-22',
-    'qwen2.5-coder-32b-instruct': 'Qwen-25C',
-    'qwen3-coder': 'Qwen-3C',
-    'gpt-oss_20b': 'GPT-OSS20',
-    'gpt-oss_120b': 'GPT-OSS120',
-    'gpt-5-2025-08-07': 'GPT-5',
-    'claude-sonnet-4-20250514': 'Claude-S4'
-}
 
-
-def wilson_halfwidths(p_percent, n, z=1.959963984540054):
+def wilson_halfwidths(p_percent, n, z=Z_95):
     """Asymmetric 95% Wilson score half-widths, in percentage points.
 
     Returns (lower, upper) suitable for matplotlib's yerr.  The captions of

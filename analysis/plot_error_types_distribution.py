@@ -1,23 +1,20 @@
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from typing import Dict, List
-from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS, wilson_halfwidths
+from common import FEEDBACK_COLS, MODEL_ABBREVIATIONS, PLOTS_DIR, RESULTS_CSV, STAGE_BY_LABEL, order_models
+from plot_style import COLORS, apply_plot_style, wilson_halfwidths
 
 apply_plot_style()
 
-# One key per feedback status written by consolidate_results.py.  The previous
-# version tested for substrings that never appeared ("syntax error in unit
-# test") and double-counted others, so four of the eight statuses were missed.
-ERROR_KEY_BY_STATUS = {
-    "class could not be created": "class_creation_errors",
-    "source code could not be set": "source_code_errors",
-    "syntax check failed": "syntax_errors",
-    "unittest syntax check failed": "unittest_syntax_errors",
-    "class name not found": "class_name_errors",
-    "not one public method": "public_method_errors",
-    "unit test failed": "unit_test_failures",
+# Every failed feedback event is counted under the pipeline stage it belongs
+# to (stages are defined in common.py, the same grouping as Figure 6).
+ERROR_KEY_BY_STAGE = {
+    "class": "class_creation_errors",
+    "syntax": "syntax_errors",
+    "unittest": "unit_test_errors",
 }
 
 
@@ -35,17 +32,16 @@ def get_error_summary_from_csv(file_path):
     for model in models:
         model_df = df[df['Model'] == model]
         
-        errors = {k: 0 for k in ERROR_KEY_BY_STATUS.values()}
-
-        feedback_cols = [c for c in df.columns if 'Feedback_Round' in c]
+        errors = {k: 0 for k in ERROR_KEY_BY_STAGE.values()}
 
         for _, row in model_df.iterrows():
-            for col in feedback_cols:
+            for col in FEEDBACK_COLS:
                 val = row[col]
                 if pd.isna(val) or val == '':
                     continue
 
-                key = ERROR_KEY_BY_STATUS.get(str(val).strip().lower())
+                stage = STAGE_BY_LABEL.get(str(val).strip().lower())
+                key = ERROR_KEY_BY_STAGE.get(stage)
                 if key is not None:
                     errors[key] += 1
 
@@ -57,21 +53,7 @@ def visualize_combined_summary_errors(summary: dict):
     combined_summary = {}
     combined_counts = {}
     
-    for model, errors in summary.items():
-        # Same grouping as Figure 6: "class name not found" and "not one public
-        # method" reject the generated source, so they are syntax-stage
-        # failures; a failing unit-test syntax check is also a syntax failure,
-        # not a semantic one - the tests never ran.
-        combined = {
-            "class_creation_errors": errors.get("class_creation_errors", 0)
-            + errors.get("source_code_errors", 0),
-            "syntax_errors": errors.get("syntax_errors", 0)
-            + errors.get("unittest_syntax_errors", 0)
-            + errors.get("class_name_errors", 0)
-            + errors.get("public_method_errors", 0),
-            "unit_test_errors": errors.get("unit_test_failures", 0),
-        }
-        
+    for model, combined in summary.items():
         total_errors = sum(combined.values())
         combined_counts[model] = { 'counts': combined, 'total': total_errors }
         
@@ -85,19 +67,7 @@ def visualize_combined_summary_errors(summary: dict):
 
     available_models = df.index.tolist()
     
-    desired_order = [
-         "llama-3.3-70b-instruct",
-        "codestral-22b",
-        "qwen2.5-coder-32b-instruct",
-        "qwen3-coder",
-        "gpt-oss_20b",
-        "gpt-oss_120b",
-        "gpt-5-2025-08-07",
-        "claude-sonnet-4-20250514"
-    ]
-    model_order = [m for m in desired_order if m in available_models]
-    remaining = [m for m in available_models if m not in model_order]
-    model_order.extend(remaining)
+    model_order = order_models(available_models)
     
     df = df.reindex(model_order)
 
@@ -138,12 +108,12 @@ def visualize_combined_summary_errors(summary: dict):
     ax.legend(title="Error Type", bbox_to_anchor=(0.5, 1.08), loc='lower center', ncol=3)
 
     plt.tight_layout()
-    output_file = '../plots/error_categories_by_model.png'
+    output_file = os.path.join(PLOTS_DIR, 'error_categories_by_model.png')
     plt.savefig(output_file)
     print(f"Plot saved to {output_file}")
     # plt.show()
 
 if __name__ == "__main__":
-    summary = get_error_summary_from_csv('../data/results.csv')
+    summary = get_error_summary_from_csv(RESULTS_CSV)
     if summary:
         visualize_combined_summary_errors(summary)

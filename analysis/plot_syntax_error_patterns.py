@@ -1,13 +1,15 @@
+import os
 import json
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
-from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS, wilson_halfwidths
+from common import MODEL_ABBREVIATIONS, PLOTS_DIR, SYNTAX_ERRORS_JSON, order_models
+from plot_style import COLORS, apply_plot_style, wilson_halfwidths
 
 apply_plot_style()
 
-def visualize_syntax_errors(json_path='../data/syntax_errors.json'):
+def visualize_syntax_errors(json_path=SYNTAX_ERRORS_JSON):
     with open(json_path, 'r') as f:
         raw_data = json.load(f)
     
@@ -30,19 +32,7 @@ def visualize_syntax_errors(json_path='../data/syntax_errors.json'):
     relative_df = df.div(df.sum(axis=1), axis=0).fillna(0)
     
     available_models = df.index.tolist()
-    desired_order = [
-        "llama-3.3-70b-instruct",
-        "codestral-22b",
-        "qwen2.5-coder-32b-instruct",
-        "qwen3-coder",
-        "gpt-oss_20b",
-        "gpt-oss_120b",
-        "gpt-5-2025-08-07",
-        "claude-sonnet-4-20250514"
-    ]
-    model_order = [m for m in desired_order if m in available_models]
-    remaining = [m for m in available_models if m not in model_order]
-    model_order.extend(remaining)
+    model_order = order_models(available_models)
     
     df = df.reindex(model_order)
     relative_df = relative_df.reindex(model_order)
@@ -87,7 +77,7 @@ def visualize_syntax_errors(json_path='../data/syntax_errors.json'):
     ax.legend(title="Error Category", bbox_to_anchor=(0.5, 1.08), loc='lower center', ncol=3)
 
     plt.tight_layout()
-    output_path = '../plots/syntax_error_types_by_model.png'
+    output_path = os.path.join(PLOTS_DIR, 'syntax_error_types_by_model.png')
     plt.savefig(output_path, dpi=300)
     print(f"Plot saved to {output_path}")
     print("\nModel Order used:", model_order)
@@ -95,5 +85,5 @@ def visualize_syntax_errors(json_path='../data/syntax_errors.json'):
 if __name__ == "__main__":
     import os
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(current_dir, '../data/syntax_errors.json')
+    json_path = SYNTAX_ERRORS_JSON
     visualize_syntax_errors(json_path)

@@ -1,18 +1,19 @@
 """
 Export raw diagram data to wide-format CSV files.
 
-Outputs (relative to this script's directory):
-  ../data/export_success_distribution.csv   – histogram bin counts per model
-  ../data/export_success_by_category.csv    – success counts per model × category
-  ../data/export_success_by_round.csv       – cumulative success counts per model × feedback round
+Outputs:
+  data/export_success_distribution.csv   – histogram bin counts per model
+  data/export_success_by_category.csv    – success counts per model × category
+  data/export_success_by_round.csv       – cumulative success counts per model × feedback round
 """
 
 import pandas as pd
 import numpy as np
 import os
+from common import DATA_DIR, FEEDBACK_COLS, MAX_ROUNDS, RESULTS_CSV, ROUND_LABELS, SUCCESS, order_models
 
-FILE_PATH = '../data/results.csv'
-OUT_DIR   = '../data'
+FILE_PATH = RESULTS_CSV
+OUT_DIR   = DATA_DIR
 
 
 def load_df(file_path: str) -> pd.DataFrame:
@@ -24,19 +25,7 @@ def load_df(file_path: str) -> pd.DataFrame:
 def ordered_models(df: pd.DataFrame) -> list:
     models = df['Model'].unique()
     models = [m for m in models if 'codestral' not in m.lower()]
-    desired_order = [
-        "llama-3.3-70b-instruct",
-        "codestral-22b",
-        "qwen2.5-coder-32b-instruct",
-        "qwen3-coder",
-        "gpt-oss_20b",
-        "gpt-oss_120b",
-        "gpt-5-2025-08-07",
-        "claude-sonnet-4-20250514",
-    ]
-    model_order = [m for m in desired_order if m in models]
-    remaining   = [m for m in models if m not in model_order]
-    return model_order + remaining
+    return order_models(models)
 
 
 # ---------------------------------------------------------------------------
@@ -104,11 +93,11 @@ def export_success_by_category(df: pd.DataFrame, out_path: str):
             for _, r in subset.iterrows():
                 is_success = str(r['Success']) == 'True'
                 if not is_success:
-                    for i in range(6):
-                        content = r[f'Feedback_Round_{i}']
+                    for col in FEEDBACK_COLS:
+                        content = r[col]
                         if pd.isna(content) or content == '':
                             continue
-                        if 'unit tests were successful' in str(content):
+                        if SUCCESS in str(content):
                             is_success = True
                             break
                 if is_success:
@@ -131,14 +120,6 @@ def export_success_by_category(df: pd.DataFrame, out_path: str):
 
 def export_success_by_round(df: pd.DataFrame, out_path: str):
     models = ordered_models(df)
-    feedback_labels = [
-        "No Feedback",
-        "1 Feedback",
-        "2 Feedbacks",
-        "3 Feedbacks",
-        "4 Feedbacks",
-        "5 Feedbacks",
-    ]
 
     rows = []
     for model in models:
@@ -146,19 +127,19 @@ def export_success_by_round(df: pd.DataFrame, out_path: str):
         total    = len(model_df)
 
         row = {'Model': model}
-        for r in range(6):
+        for r in range(MAX_ROUNDS):
             success_count = 0
             for _, entry in model_df.iterrows():
                 is_success = str(entry['Success']) == 'True'
                 duration   = 0
 
-                rounds_content = [entry[f'Feedback_Round_{i}'] for i in range(6)]
+                rounds_content = [entry[col] for col in FEEDBACK_COLS]
                 found_string   = False
                 for idx, content in enumerate(rounds_content):
                     if pd.isna(content) or content == '':
                         break
                     duration = idx
-                    if 'unit tests were successful' in str(content):
+                    if SUCCESS in str(content):
                         found_string = True
                         break
 
@@ -168,7 +149,7 @@ def export_success_by_round(df: pd.DataFrame, out_path: str):
                 if is_success and duration <= r:
                     success_count += 1
 
-            row[feedback_labels[r]] = success_count
+            row[ROUND_LABELS[r]] = success_count
 
         row['Total'] = total
         rows.append(row)

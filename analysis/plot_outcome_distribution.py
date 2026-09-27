@@ -1,21 +1,13 @@
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
-from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS
+from common import FEEDBACK_COLS, MODEL_ABBREVIATIONS, PLOTS_DIR, RESULTS_CSV, STAGE_BY_LABEL, order_models
+from plot_style import COLORS, apply_plot_style
 
 apply_plot_style()
 
-DESIRED_ORDER = [
-    "llama-3.3-70b-instruct",
-    "codestral-22b",
-    "qwen2.5-coder-32b-instruct",
-    "qwen3-coder",
-    "gpt-oss_20b",
-    "gpt-oss_120b",
-    "gpt-5-2025-08-07",
-    "claude-sonnet-4-20250514",
-]
 
 OUTCOME_COLORS = {
     "Class Creation Error": COLORS[0],
@@ -25,19 +17,13 @@ OUTCOME_COLORS = {
 }
 
 
-# Maps each feedback status written by consolidate_results.py to the pipeline
-# stage the attempt terminated in.  "class name not found" and "not one public
-# method" are structural rejections of the generated source, so they belong to
-# the syntax/structure stage, not to class creation.
-OUTCOME_BY_STATUS = {
-    "unit tests were successful": "Success",
-    "syntax check failed": "Syntax Error",
-    "unittest syntax check failed": "Syntax Error",
-    "class name not found": "Syntax Error",
-    "not one public method": "Syntax Error",
-    "unit test failed": "Semantic Error",
-    "class could not be created": "Class Creation Error",
-    "source code could not be set": "Class Creation Error",
+# Display name of the pipeline stage an attempt terminated in (stages are
+# defined in common.py).
+OUTCOME_BY_STAGE = {
+    "success": "Success",
+    "syntax": "Syntax Error",
+    "unittest": "Semantic Error",
+    "class": "Class Creation Error",
 }
 
 
@@ -56,12 +42,12 @@ def get_final_outcome(row, feedback_cols):
         return "Success"
 
     # No feedback at all → treat as class-creation failure (generation failed immediately)
-    return OUTCOME_BY_STATUS.get(last_feedback, "Class Creation Error")
+    return OUTCOME_BY_STAGE[STAGE_BY_LABEL.get(last_feedback, "class")]
 
 
 def get_outcome_distribution(file_path):
     df = pd.read_csv(file_path, sep=";")
-    feedback_cols = [c for c in df.columns if c.startswith("Feedback_Round_")]
+    feedback_cols = FEEDBACK_COLS
 
     records = []
     for _, row in df.iterrows():
@@ -80,8 +66,7 @@ def get_outcome_distribution(file_path):
 
     # Order models
     available = counts.index.tolist()
-    model_order = [m for m in DESIRED_ORDER if m in available]
-    model_order += [m for m in available if m not in model_order]
+    model_order = order_models(available)
     counts = counts.reindex(model_order)
 
     # Convert to percentages
@@ -129,12 +114,12 @@ def plot_stacked_outcomes(pct, totals):
     ax.legend(title="Outcome", bbox_to_anchor=(0.5, 1.08), loc="lower center", ncol=4)
 
     plt.tight_layout()
-    output_file = "../plots/outcome_distribution_by_model.png"
+    output_file = os.path.join(PLOTS_DIR, "outcome_distribution_by_model.png")
     plt.savefig(output_file, bbox_inches="tight")
     print(f"Plot saved to {output_file}")
 
 
 if __name__ == "__main__":
-    pct, totals = get_outcome_distribution("../data/results.csv")
+    pct, totals = get_outcome_distribution(RESULTS_CSV)
     print(pct.to_string())
     plot_stacked_outcomes(pct, totals)

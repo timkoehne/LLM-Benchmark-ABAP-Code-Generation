@@ -1,7 +1,9 @@
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Dict, List
+from common import FEEDBACK_COLS, PLOTS_DIR, RESULTS_CSV, SUCCESS, order_models
 from plot_style import COLORS, apply_plot_style
 from matplotlib.ticker import PercentFormatter
 
@@ -16,19 +18,7 @@ def get_failed_task_counts(file_path):
 
     target_models = df['Model'].unique()
     
-    desired_order = [
-        "llama-3.3-70b-instruct",
-        "codestral-22b",
-        "qwen2.5-coder-32b-instruct",
-        "qwen3-coder",
-        "gpt-oss_20b",
-        "gpt-oss_120b",
-        "gpt-5-2025-08-07",
-        "claude-sonnet-4-20250514"
-    ]
-    model_order = [m for m in desired_order if m in target_models]
-    remaining = [m for m in target_models if m not in model_order]
-    target_models = model_order + remaining
+    target_models = order_models(target_models)
     
     print(f"Models found: {target_models}")
     
@@ -75,11 +65,11 @@ def get_failed_task_counts(file_path):
                     if str(row['Success']) == 'True':
                         is_success = True
                     else:
-                        rounds_content = [row[f'Feedback_Round_{i}'] for i in range(6)]
+                        rounds_content = [row[col] for col in FEEDBACK_COLS]
                         for content in rounds_content:
                             if pd.isna(content) or content == '':
                                 continue
-                            if 'unit tests were successful' in str(content):
+                            if SUCCESS in str(content):
                                 is_success = True
                                 break
                     
@@ -143,14 +133,14 @@ def visualize_failed_tasks_intersection(failed_task_ids: Dict[str, Dict[str, set
     plt.legend()
     plt.tight_layout()
     
-    output_file = '../plots/failed_tasks_by_category.png'
+    output_file = os.path.join(PLOTS_DIR, 'failed_tasks_by_category.png')
     plt.savefig(output_file)
     print(f"Plot saved to {output_file}")
 
 if __name__ == "__main__":
     import os
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(current_dir, '../data/results.csv')
+    file_path = RESULTS_CSV
     failed_task_ids, category_total_counts = get_failed_task_counts(file_path)
     if failed_task_ids:
         visualize_failed_tasks_intersection(failed_task_ids, category_total_counts)

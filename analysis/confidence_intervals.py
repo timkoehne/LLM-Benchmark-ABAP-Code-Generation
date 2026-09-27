@@ -25,20 +25,11 @@ import os
 import numpy as np
 import pandas as pd
 
-from plot_style import MODEL_ABBREVIATIONS as AB
-from trial_outcomes import DATA, build_trials
+from common import Z_95, DATA_DIR, LAST_ROUND, MAX_ROUNDS, MODEL_ORDER
+from common import MODEL_ABBREVIATIONS as AB
+from trial_outcomes import build_trials
 
-MODEL_ORDER = [
-    "llama-3.3-70b-instruct",
-    "codestral-22b",
-    "qwen2.5-coder-32b-instruct",
-    "qwen3-coder",
-    "gpt-oss_20b",
-    "gpt-oss_120b",
-    "gpt-5-2025-08-07",
-    "claude-sonnet-4-20250514",
-]
-Z = 1.959963984540054          # two-sided 95%
+Z = Z_95
 N_BOOT = 10000
 SEED = 20260830
 
@@ -119,8 +110,8 @@ def main():
     print(f"{'Model':<12}{'p1@1(0)':>34}{'p1@1(5)':>34}{'p2@1(5)':>34}")
     for m in MODEL_ORDER:
         cells = []
-        for col, n, lab in [("l1_round", 0, "p1@1(0)"), ("l1_round", 5, "p1@1(5)"),
-                            ("success_round", 5, "p2@1(5)")]:
+        for col, n, lab in [("l1_round", 0, "p1@1(0)"), ("l1_round", LAST_ROUND, "p1@1(5)"),
+                            ("success_round", LAST_ROUND, "p2@1(5)")]:
             p, lo, hi, blo, bhi = trial_ci(per[m], col, n, lab, m)
             cells.append(f"{fmt(p, lo, hi)} {{{blo:4.1f},{bhi:5.1f}}}")
         print(f"{AB[m]:<12}" + "".join(f"{c:>34}" for c in cells))
@@ -132,8 +123,8 @@ def main():
     print(f"{'Model':<12}{'p1@10(0)':>24}{'p1@10(5)':>24}{'p2@10(5)':>24}")
     for m in MODEL_ORDER:
         cells = []
-        for col, n, lab in [("l1_round", 0, "p1@10(0)"), ("l1_round", 5, "p1@10(5)"),
-                            ("success_round", 5, "p2@10(5)")]:
+        for col, n, lab in [("l1_round", 0, "p1@10(0)"), ("l1_round", LAST_ROUND, "p1@10(5)"),
+                            ("success_round", LAST_ROUND, "p2@10(5)")]:
             cells.append(fmt(*task_ci(per[m], col, n, lab, m)))
         print(f"{AB[m]:<12}" + "".join(f"{c:>24}" for c in cells))
 
@@ -142,10 +133,10 @@ def main():
         print("\n" + "=" * 100)
         print(f"FIGURE 3  cumulative {name} with Wilson intervals, n = 1800 per cell")
         print("=" * 100)
-        print(f"{'Model':<12}" + "".join(f"{'n='+str(i):>22}" for i in range(6)))
+        print(f"{'Model':<12}" + "".join(f"{'n='+str(i):>22}" for i in range(MAX_ROUNDS)))
         for m in MODEL_ORDER:
             cells = []
-            for i in range(6):
+            for i in range(MAX_ROUNDS):
                 p, lo, hi, _, _ = trial_ci(per[m], col, i, f"{name[:5]}({i})", m, boot=False)
                 cells.append(fmt(p, lo, hi))
             print(f"{AB[m]:<12}" + "".join(f"{c:>22}" for c in cells))
@@ -159,7 +150,7 @@ def main():
         cells = []
         for c in CATS:
             sub = per[m][per[m][c]]
-            p, lo, hi, _, _ = trial_ci(sub, "success_round", 5, f"p2@1(5)|{c}", m, boot=False)
+            p, lo, hi, _, _ = trial_ci(sub, "success_round", LAST_ROUND, f"p2@1(5)|{c}", m, boot=False)
             cells.append(fmt(p, lo, hi))
         print(f"{AB[m]:<12}" + "".join(f"{x:>23}" for x in cells))
 
@@ -168,7 +159,7 @@ def main():
     print("TABLE 11  share of tasks per category never solved by either GPT-5 or Claude-S4")
     print("=" * 100)
     g5, cs4 = "gpt-5-2025-08-07", "claude-sonnet-4-20250514"
-    cnt = {m: per[m].assign(ok=per[m]["success_round"] <= 5)
+    cnt = {m: per[m].assign(ok=per[m]["success_round"] <= LAST_ROUND)
                     .groupby("Prompt")["ok"].sum() for m in MODEL_ORDER}
     never = {m: set(cnt[m][cnt[m] == 0].index) for m in MODEL_ORDER}
     inter = never[g5] & never[cs4]
@@ -193,7 +184,7 @@ def main():
     print("TABLE 12  syntax-error category shares, Wilson intervals "
           "(n = categorised errors per model)")
     print("=" * 100)
-    with open(os.path.join(DATA, "syntax_errors.json")) as f:
+    with open(os.path.join(DATA_DIR, "syntax_errors.json")) as f:
         se = json.load(f)
     order = ["Lexical and Token Errors", "Structural and Formatting Errors",
              "Type and Conversion Errors", "OOP Errors", "Declaration Errors"]
@@ -218,8 +209,8 @@ def main():
     pairs = [(g5, cs4), ("gpt-oss_120b", "gpt-oss_20b"), (g5, "gpt-oss_120b"),
              (cs4, "gpt-oss_120b")]
     for a, b in pairs:
-        ka = int((per[a]["success_round"] <= 5).sum())
-        kb = int((per[b]["success_round"] <= 5).sum())
+        ka = int((per[a]["success_round"] <= LAST_ROUND).sum())
+        kb = int((per[b]["success_round"] <= LAST_ROUND).sum())
         d, lo, hi = newcombe_diff(ka, len(per[a]), kb, len(per[b]))
         rows.append(dict(metric="diff p2@1(5)", model=f"{AB[a]} - {AB[b]}", level="trial",
                          k=ka - kb, n=len(per[a]), estimate=d,
@@ -227,7 +218,7 @@ def main():
         star = "" if lo <= 0 <= hi else "  (excludes 0)"
         print(f"{AB[a]+' - '+AB[b]:<28}{d:>13.1f} [{lo:5.1f}, {hi:5.1f}]{star}")
 
-    out = os.path.join(DATA, "confidence_intervals.csv")
+    out = os.path.join(DATA_DIR, "confidence_intervals.csv")
     pd.DataFrame(rows).to_csv(out, index=False, float_format="%.4f")
     print(f"\nwrote {os.path.abspath(out)}  ({len(rows)} rows)")
 
@@ -239,7 +230,7 @@ def main():
     print("\\hline")
     for m in MODEL_ORDER:
         cells = []
-        for col, n in [("l1_round", 0), ("l1_round", 5), ("success_round", 5)]:
+        for col, n in [("l1_round", 0), ("l1_round", LAST_ROUND), ("success_round", LAST_ROUND)]:
             k = int((per[m][col] <= n).sum())
             p, lo, hi = wilson(k, len(per[m]))
             cells.append(f"{p:.1f}\\% [{lo:.1f}, {hi:.1f}]")
@@ -254,7 +245,7 @@ def main():
     print("\\hline")
     for m in MODEL_ORDER:
         cells = []
-        for col, n in [("l1_round", 0), ("l1_round", 5), ("success_round", 5)]:
+        for col, n in [("l1_round", 0), ("l1_round", LAST_ROUND), ("success_round", LAST_ROUND)]:
             s = per[m].assign(ok=per[m][col] <= n).groupby("Prompt")["ok"].any()
             p, lo, hi = wilson(int(s.sum()), len(s))
             cells.append(f"{p:.1f}\\% [{lo:.1f}, {hi:.1f}]")

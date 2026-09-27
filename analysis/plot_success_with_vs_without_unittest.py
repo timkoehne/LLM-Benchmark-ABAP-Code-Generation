@@ -1,9 +1,11 @@
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from typing import Dict, Tuple
-from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS, wilson_halfwidths
+from common import FEEDBACK_COLS, MODEL_ABBREVIATIONS, PLOTS_DIR, RESULTS_CSV, SUCCESS, UNIT_TEST_FAILED, order_models
+from plot_style import COLORS, apply_plot_style, wilson_halfwidths
 
 apply_plot_style()
 
@@ -17,19 +19,7 @@ def get_comparison_data(file_path: str) -> Tuple[Dict[str, float], Dict[str, flo
     models = df['Model'].unique()
     models = [m for m in models if 'codestral' not in m.lower()]
     
-    desired_order = [
-        "llama-3.3-70b-instruct",
-        "codestral-22b",
-        "qwen2.5-coder-32b-instruct",
-        "qwen3-coder",
-        "gpt-oss_20b",
-        "gpt-oss_120b",
-        "gpt-5-2025-08-07",
-        "claude-sonnet-4-20250514"
-    ]
-    model_order = [m for m in desired_order if m in models]
-    remaining = [m for m in models if m not in model_order]
-    models = model_order + remaining
+    models = order_models(models)
     
     success_normal = {}
     success_no_ut = {}
@@ -49,12 +39,12 @@ def get_comparison_data(file_path: str) -> Tuple[Dict[str, float], Dict[str, flo
             if str(row['Success']) == 'True':
                  is_success = True
             
-            rounds_content = [row[f'Feedback_Round_{i}'] for i in range(6)]
+            rounds_content = [row[col] for col in FEEDBACK_COLS]
             
             for content in rounds_content:
                 if pd.isna(content) or content == '':
                     break
-                if 'unit tests were successful' in str(content):
+                if SUCCESS in str(content):
                     is_success = True
                     break
                     
@@ -66,7 +56,7 @@ def get_comparison_data(file_path: str) -> Tuple[Dict[str, float], Dict[str, flo
                 for content in rounds_content:
                     if pd.isna(content) or content == '':
                         break
-                    if 'unit test failed' in str(content):
+                    if UNIT_TEST_FAILED in str(content):
                         used_ut_feedback = True
                         break
                 
@@ -139,7 +129,7 @@ def plot_comparison(success_normal: Dict[str, float], success_no_ut: Dict[str, f
     ax.legend()
     
     plt.tight_layout()
-    output_file = '../plots/success_with_vs_without_unittest.png'
+    output_file = os.path.join(PLOTS_DIR, 'success_with_vs_without_unittest.png')
     plt.savefig(output_file)
     print(f"Plot saved to {output_file}")
     
@@ -154,7 +144,7 @@ def print_comparison_table(success_normal: Dict[str, float], success_no_ut: Dict
         print(f"{model:<25} | {val_no_ut:29.2f}% | {val_normal:24.2f}% | {diff:9.2f}%")
 
 if __name__ == "__main__":
-    success_normal, success_no_ut, counts = get_comparison_data('../data/results.csv')
+    success_normal, success_no_ut, counts = get_comparison_data(RESULTS_CSV)
     if success_normal:
         plot_comparison(success_normal, success_no_ut, counts)
         print_comparison_table(success_normal, success_no_ut)

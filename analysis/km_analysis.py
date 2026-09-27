@@ -1,8 +1,10 @@
+import os
 import pandas as pd
 from lifelines import KaplanMeierFitter
 import numpy as np
 import matplotlib.pyplot as plt
-from plot_style import COLORS, LINE_STYLES, apply_plot_style, MODEL_ABBREVIATIONS
+from common import FEEDBACK_COLS, LAST_ROUND, MAX_ROUNDS, MODEL_ABBREVIATIONS, PLOTS_DIR, RESULTS_CSV, SUCCESS, order_models
+from plot_style import COLORS, LINE_STYLES, apply_plot_style
 
 apply_plot_style()
 
@@ -19,14 +21,14 @@ def calculate_variance(kmf):
         return None
 
 def run_analysis():
-    file_path = '../data/results.csv'
+    file_path = RESULTS_CSV
     try:
         df = pd.read_csv(file_path, sep=';')
     except Exception as e:
         print(f"Error reading CSV: {e}")
         return
 
-    required_cols = ['Model', 'Feedback_Round_0', 'Feedback_Round_1', 'Feedback_Round_2', 'Feedback_Round_3', 'Feedback_Round_4', 'Feedback_Round_5', 'Success']
+    required_cols = ['Model'] + FEEDBACK_COLS + ['Success']
     if not all(col in df.columns for col in required_cols):
         print(f"Missing one of the columns: {required_cols}")
         return
@@ -36,19 +38,7 @@ def run_analysis():
     models = df['Model'].unique()
     models = [m for m in models if 'codestral' not in m.lower()]
     
-    desired_order = [
-        "llama-3.3-70b-instruct",
-        "codestral-22b",
-        "qwen2.5-coder-32b-instruct",
-        "qwen3-coder",
-        "gpt-oss_20b",
-        "gpt-oss_120b",
-        "gpt-5-2025-08-07",
-        "claude-sonnet-4-20250514"
-    ]
-    model_order = [m for m in desired_order if m in models]
-    remaining = [m for m in models if m not in model_order]
-    models = model_order + remaining
+    models = order_models(models)
 
     print(f"Found {len(models)} models: {models}\n")
 
@@ -68,7 +58,7 @@ def run_analysis():
             if str(row['Success']) == 'True':
                  success_event = True
             
-            rounds = [row[f'Feedback_Round_{i}'] for i in range(6)]
+            rounds = [row[col] for col in FEEDBACK_COLS]
             
             duration_index = 0
             found_success_string = False
@@ -79,7 +69,7 @@ def run_analysis():
                 
                 duration_index = i
                 
-                if 'unit tests were successful' in str(r):
+                if SUCCESS in str(r):
                     found_success_string = True
                     break
             
@@ -118,14 +108,14 @@ def run_analysis():
         kmf.plot_survival_function(color=color, linestyle=linestyle)
         print("\n")
 
-    plt.xlabel('Feedback Round Index (0-5)')
+    plt.xlabel(f'Feedback Round Index (0-{LAST_ROUND})')
     plt.ylabel('Survival Probability')
     plt.ylim(0, 1.05)
-    plt.xlim(0, 5)
-    plt.xticks(range(6))
+    plt.xlim(0, LAST_ROUND)
+    plt.xticks(range(MAX_ROUNDS))
     plt.tight_layout()
     
-    output_file = '../plots/km_survival_curve_all_models.png'
+    output_file = os.path.join(PLOTS_DIR, 'km_survival_curve_all_models.png')
     plt.savefig(output_file)
     print(f"Combined plot saved to {output_file}")
 

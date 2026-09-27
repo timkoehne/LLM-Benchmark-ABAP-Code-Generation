@@ -1,18 +1,7 @@
 """Parse the raw conversation logs into one row per trial.
 
-This replaces the round extraction in ``consolidate_results.py``, which only
-recognises four of the eight feedback messages the harness actually emits and
-therefore silently drops ~11% of all feedback events, shifting every
-round index towards zero.  The full set of feedback messages is:
-
-    The syntax check failed with the following errors:          -> syntax
-    The unittest syntax check failed with the following errors: -> syntax   (dropped before)
-    The class could not be created due to the following error:  -> class
-    Class name not found.                                       -> class    (dropped before)
-    There should only be the one public method.                 -> class    (dropped before)
-    The source code could not be set due to the following error:-> class    (dropped before)
-    The unit test failed with the following errors:             -> unittest
-    The unit tests were successful.                             -> success
+Works directly on data/<model>.json rather than data/results.csv. Feedback
+messages, their labels and stages are defined once in common.py.
 
 Emitted columns per trial: the ordered list of feedback events, the round at
 which Level-2 success was reached (``success_round``), the round at which
@@ -27,33 +16,17 @@ import os
 import numpy as np
 import pandas as pd
 
-DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
-
-# Fine-grained label per feedback message, plus the pipeline stage it belongs
-# to.  "Class name not found" and "There should only be the one public method"
-# are structural rejections of the generated source, so they belong to the
-# syntax/structure stage rather than to class creation - this is the grouping
-# that reproduces Figure 6 of the paper.
-FEEDBACK_PATTERNS = [
-    ("The unit tests were successful", "success", "success"),
-    ("The unittest syntax check failed", "ut_syntax", "syntax"),
-    ("The syntax check failed", "syntax", "syntax"),
-    ("The unit test failed", "unittest", "unittest"),
-    ("The class could not be created", "class_create", "class"),
-    ("The source code could not be set", "src_set", "class"),
-    ("Class name not found", "name_not_found", "syntax"),
-    ("There should only be the one public method", "one_public_method", "syntax"),
-]
-STAGE = {label: stage for _, label, stage in FEEDBACK_PATTERNS}
-
-MAX_ROUNDS = 6
-
-
-def classify(content):
-    for needle, label, _stage in FEEDBACK_PATTERNS:
-        if content.startswith(needle):
-            return label
-    return None
+from common import (
+    CATEGORIES,
+    CATEGORY_RENAME,
+    DATA_DIR,
+    MAX_ROUNDS,
+    PROMPT_CLASSIFICATION_CSV,
+    STAGE_BY_LABEL,
+    SUCCESS,
+    UNIT_TEST_FAILED,
+    classify_feedback,
+)
 
 
 def build_trials(strict_rounds=True):
@@ -63,7 +36,7 @@ def build_trials(strict_rounds=True):
     ``MAX_ROUNDS`` feedback rounds (n = 0..5), matching the experimental design.
     """
     rows = []
-    for path in sorted(glob.glob(os.path.join(DATA, "*.json"))):
+    for path in sorted(glob.glob(os.path.join(DATA_DIR, "*.json"))):
         if os.path.basename(path) in ("syntax_errors.json", "results.json"):
             continue
         with open(path, encoding="utf-8") as f:
@@ -78,20 +51,20 @@ def build_trials(strict_rounds=True):
                 for msg in conversation:
                     if msg["role"] != "user":
                         continue
-                    label = classify(msg["content"])
+                    label = classify_feedback(msg["content"])
                     if label is not None:
                         events.append(label)
 
                 n_gen = sum(1 for m in conversation if m["role"] == "assistant")
 
                 try:
-                    s_round = events.index("success")
+                    s_round = events.index(SUCCESS)
                 except ValueError:
                     s_round = np.nan
 
                 if np.isnan(s_round):
                     l1_round = np.nan
-                elif "unittest" in events[:int(s_round)]:
+                elif UNIT_TEST_FAILED in events[:int(s_round)]:
                     l1_round = np.nan
                 else:
                     l1_round = s_round
@@ -113,22 +86,15 @@ def build_trials(strict_rounds=True):
                     "success_round": s_round,
                     "l1_round": l1_round,
                     "final_event": final,
-                    "final_stage": STAGE.get(final, "class"),
+                    "final_stage": STAGE_BY_LABEL.get(final, "class"),
                 })
 
     df = pd.DataFrame(rows)
 
-    cls = pd.read_csv(os.path.join(DATA, "prompt_classification.csv"), sep=";")
+    cls = pd.read_csv(PROMPT_CLASSIFICATION_CSV, sep=";")
     cls["Prompt"] = cls[cls.columns[0]].astype(str)
-    rename = {
-        "String Handling": "String Handling",
-        "List & Array Operations": "List or Array Operation",
-        "Mathematical Calculations": "Mathematical Calculation",
-        "Logical Checks": "Logical Condition",
-        "Database Operations (ABAP)": "ABAP Database Operation",
-    }
-    cls = cls.rename(columns=rename)
-    cat_cols = list(rename.values())
+    cls = cls.rename(columns=CATEGORY_RENAME)
+    cat_cols = CATEGORIES
     for c in cat_cols:
         cls[c] = cls[c].astype(str).str.strip().str.upper().eq("X")
     df = df.merge(cls[["Prompt"] + cat_cols], on="Prompt", how="left")

@@ -16,21 +16,12 @@ import numpy as np
 import pandas as pd
 from scipy.stats import kendalltau, spearmanr
 
-from plot_style import MODEL_ABBREVIATIONS as AB
-from trial_outcomes import DATA, build_trials
+from common import DATA_DIR, LAST_ROUND, MAX_ROUNDS, MODEL_ORDER, REPETITIONS
+from common import MODEL_ABBREVIATIONS as AB
+from trial_outcomes import build_trials
 
-MODEL_ORDER = [
-    "llama-3.3-70b-instruct",
-    "codestral-22b",
-    "qwen2.5-coder-32b-instruct",
-    "qwen3-coder",
-    "gpt-oss_20b",
-    "gpt-oss_120b",
-    "gpt-5-2025-08-07",
-    "claude-sonnet-4-20250514",
-]
 CORR_MODELS = [m for m in MODEL_ORDER if m != "codestral-22b"]
-ROUNDS = range(6)
+ROUNDS = range(MAX_ROUNDS)
 G5, CS4 = "gpt-5-2025-08-07", "claude-sonnet-4-20250514"
 
 OK, BAD = "ok", "** MISMATCH **"
@@ -94,7 +85,7 @@ def main():
     print(f"  {'Model':<12}{'p1@1(0)':>9}{'pap':>7}{'p1@1(5)':>10}{'pap':>7}"
           f"{'p2@1(5)':>10}{'pap':>7}   status")
     for m in MODEL_ORDER:
-        v = (p_at_1(m, "l1_round", 0), p_at_1(m, "l1_round", 5), p_at_1(m, "success_round", 5))
+        v = (p_at_1(m, "l1_round", 0), p_at_1(m, "l1_round", LAST_ROUND), p_at_1(m, "success_round", LAST_ROUND))
         p = paper[AB[m]]
         print(f"  {AB[m]:<12}{v[0]:>8.1f}%{p[0]:>6.1f}%{v[1]:>9.1f}%{p[1]:>6.1f}%"
               f"{v[2]:>9.1f}%{p[2]:>6.1f}%   "
@@ -109,7 +100,7 @@ def main():
     print(f"  {'Model':<12}{'p1@10(0)':>10}{'pap':>7}{'p1@10(5)':>11}{'pap':>7}"
           f"{'p2@10(5)':>11}{'pap':>7}   status")
     for m in MODEL_ORDER:
-        v = (p_at_10(m, "l1_round", 0), p_at_10(m, "l1_round", 5), p_at_10(m, "success_round", 5))
+        v = (p_at_10(m, "l1_round", 0), p_at_10(m, "l1_round", LAST_ROUND), p_at_10(m, "success_round", LAST_ROUND))
         p = paper[AB[m]]
         print(f"  {AB[m]:<12}{v[0]:>9.1f}%{p[0]:>6.1f}%{v[1]:>10.1f}%{p[1]:>6.1f}%"
               f"{v[2]:>10.1f}%{p[2]:>6.1f}%   "
@@ -133,11 +124,11 @@ def main():
     succ_cnt = {}
     for m in MODEL_ORDER:
         d = per[m]
-        succ_cnt[m] = d.assign(ok=d["success_round"] <= 5).groupby("Prompt")["ok"].sum()
+        succ_cnt[m] = d.assign(ok=d["success_round"] <= LAST_ROUND).groupby("Prompt")["ok"].sum()
     print(f"  {'Model':<12}{'never':>7}{'pap':>6}{'1-9':>7}{'pap':>6}{'10/10':>7}{'pap':>6}   status")
     for m in MODEL_ORDER:
         c = succ_cnt[m]
-        v = (int((c == 0).sum()), int(((c >= 1) & (c <= 9)).sum()), int((c == 10).sum()))
+        v = (int((c == 0).sum()), int(((c >= 1) & (c < REPETITIONS)).sum()), int((c == REPETITIONS).sum()))
         p = paper.get(AB[m])
         if p is None:
             print(f"  {AB[m]:<12}{v[0]:>7}{'-':>6}{v[1]:>7}{'-':>6}{v[2]:>7}{'-':>6}   (not in paper)")
@@ -148,7 +139,7 @@ def main():
     # ------------------------------------------------------------ set overlaps
     header("SECTION 4.3  Never-solved / always-solved set sizes")
     never = {m: set(succ_cnt[m][succ_cnt[m] == 0].index) for m in MODEL_ORDER}
-    always = {m: set(succ_cnt[m][succ_cnt[m] == 10].index) for m in MODEL_ORDER}
+    always = {m: set(succ_cnt[m][succ_cnt[m] == REPETITIONS].index) for m in MODEL_ORDER}
     inter = never[G5] & never[CS4]
     univ = set.intersection(*[never[m] for m in CORR_MODELS])
     for name, v, p in [
@@ -174,7 +165,7 @@ def main():
 
     # ---------------------------------------------------------------- T9/T10
     header("TABLES 9 & 10  Pairwise correlations")
-    stab = pd.DataFrame({m: succ_cnt[m].apply(lambda c: 0 if c == 0 else (2 if c == 10 else 1))
+    stab = pd.DataFrame({m: succ_cnt[m].apply(lambda c: 0 if c == 0 else (2 if c == REPETITIONS else 1))
                          for m in CORR_MODELS})
     rates = pd.DataFrame({m: succ_cnt[m] / 10.0 for m in CORR_MODELS})
     paper9 = {("Llama-33","Qwen-25C"):.56,("Llama-33","Qwen-3C"):.55,("Llama-33","GPT-OSS20"):.47,
@@ -233,7 +224,7 @@ def main():
     for m in MODEL_ORDER:
         d = per[m]
         print(f"  {AB[m]:<12}" +
-              "".join(f"{(d[d[c]]['success_round'] <= 5).mean()*100:>13.1f}%" for c in CATS))
+              "".join(f"{(d[d[c]]['success_round'] <= LAST_ROUND).mean()*100:>13.1f}%" for c in CATS))
     print("\n  paper: GPT-5 68.1% (TA) .. 81.8% (TS); "
           "Claude-S4 'even smaller variation', 64.0% (TL) .. 66.3% (TA)")
 
@@ -263,7 +254,7 @@ def main():
              "Qwen-25C": (51.0, 9.9, 17.8, 7.4, 14.0), "Qwen-3C": (46.0, 9.3, 23.3, 7.2, 14.1),
              "GPT-OSS20": (48.1, 12.7, 13.2, 5.3, 20.7), "GPT-OSS120": (39.3, 8.4, 3.1, 4.5, 44.7),
              "GPT-5": (41.4, 6.3, 7.5, 1.8, 43.0), "Claude-S4": (16.6, 9.1, 55.2, 5.9, 13.3)}
-    with open(os.path.join(DATA, "syntax_errors.json")) as f:
+    with open(os.path.join(DATA_DIR, "syntax_errors.json")) as f:
         se = json.load(f)
     all_cats = sorted({c for m in se for c in se[m]})
     order = ["Lexical and Token Errors", "Structural and Formatting Errors",
@@ -295,7 +286,7 @@ def main():
              "GPT-OSS20": (528, 31, 29, 23, 0.84), "GPT-OSS120": (831, 32, 30, 24, 0.87),
              "GPT-5": (1388, 36, 33, 27, 0.96), "Claude-S4": (1344, 50, 37, 26, 1.07),
              "Baseline": (180, 44, 34, 24, 1.00)}
-    cs = pd.read_csv(os.path.join(DATA, "code_size_metrics.csv")).set_index("Model")
+    cs = pd.read_csv(os.path.join(DATA_DIR, "code_size_metrics.csv")).set_index("Model")
     print(f"  {'Model':<12}{'N':>6}{'pap':>6}{'LOC':>6}{'pap':>5}{'SLOC':>6}{'pap':>5}"
           f"{'LLOC':>6}{'pap':>5}{'ratio':>8}{'pap':>6}   status")
     for m in MODEL_ORDER + ["Baseline"]:
@@ -314,7 +305,7 @@ def main():
           f"printed as 34 in the paper;\n  the ratio column divides by the unrounded value.")
     print("  N should equal Level-2 successes after 5 cycles:")
     for m in MODEL_ORDER:
-        n2 = int((per[m]["success_round"] <= 5).sum())
+        n2 = int((per[m]["success_round"] <= LAST_ROUND).sum())
         print(f"    {AB[m]:<12}{n2:>6}   csv N = {int(cs.loc[m,'N']) if m in cs.index else '-':>6}   "
               f"{check(int(cs.loc[m,'N']) if m in cs.index else None, n2, 0)}")
 
@@ -326,11 +317,11 @@ def main():
         ("GPT-5 p1@1(2)", g5_2, 52.8),
         ("GPT-5 p1@1(2)/p1@1(0)", g5_2 / g5_0, 2.7),
         ("GPT-OSS120 p1@1(2)", p_at_1("gpt-oss_120b", "l1_round", 2), 26.0),
-        ("GPT-OSS120 p1@1(5)", p_at_1("gpt-oss_120b", "l1_round", 5), 39.6),
-        ("1 - p2@10(5) GPT-5", 100 - p_at_10(G5, "success_round", 5), 13.9),
-        ("1 - p2@10(5) Claude-S4", 100 - p_at_10(CS4, "success_round", 5), 15.6),
-        ("Llama-33 p1@1(5)", p_at_1("llama-3.3-70b-instruct", "l1_round", 5), 16.4),
-        ("GPT-OSS20 p1@1(5)", p_at_1("gpt-oss_20b", "l1_round", 5), 26.0),
+        ("GPT-OSS120 p1@1(5)", p_at_1("gpt-oss_120b", "l1_round", LAST_ROUND), 39.6),
+        ("1 - p2@10(5) GPT-5", 100 - p_at_10(G5, "success_round", LAST_ROUND), 13.9),
+        ("1 - p2@10(5) Claude-S4", 100 - p_at_10(CS4, "success_round", LAST_ROUND), 15.6),
+        ("Llama-33 p1@1(5)", p_at_1("llama-3.3-70b-instruct", "l1_round", LAST_ROUND), 16.4),
+        ("GPT-OSS20 p1@1(5)", p_at_1("gpt-oss_20b", "l1_round", LAST_ROUND), 26.0),
     ]:
         print(f"  {name:<32}{v:>10.2f}  paper {p:>7}   {check(v, p, 0.06)}")
 

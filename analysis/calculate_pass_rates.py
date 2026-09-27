@@ -1,32 +1,35 @@
+import os
+
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Tuple
+
+from common import DATA_DIR, FEEDBACK_COLS, MODEL_ORDER, RESULTS_CSV, SUCCESS, UNIT_TEST_FAILED
+
 
 def get_success_flags(row: pd.Series) -> pd.Series:
     is_success = False
     if str(row['Success']).strip().lower() == 'true':
         is_success = True
     else:
-        for i in range(6):
-            col_name = f'Feedback_Round_{i}'
+        for col_name in FEEDBACK_COLS:
             if col_name in row:
                 content = row[col_name]
                 if pd.isna(content) or content == '':
                     continue
-                if 'unit tests were successful' in str(content).lower():
+                if SUCCESS in str(content).lower():
                     is_success = True
                     break
                     
     is_success_no_ut = False
     if is_success:
         used_ut_feedback = False
-        for i in range(6):
-            col_name = f'Feedback_Round_{i}'
+        for col_name in FEEDBACK_COLS:
             if col_name in row:
                 content = row[col_name]
                 if pd.isna(content) or content == '':
                     continue
-                if 'unit test failed' in str(content).lower():
+                if UNIT_TEST_FAILED in str(content).lower():
                     used_ut_feedback = True
                     break
         if not used_ut_feedback:
@@ -83,20 +86,9 @@ def calculate_pass_rates(file_path: str):
         
     results_df = pd.DataFrame(results)
     
-    # Define desired model order if present, else sort by Pass@10
-    desired_order = [
-        "llama-3.3-70b-instruct",
-        "codestral-22b",
-        "qwen2.5-coder-32b-instruct",
-        "qwen3-coder",
-        "gpt-oss_20b",
-        "gpt-oss_120b",
-        "gpt-5-2025-08-07",
-        "claude-sonnet-4-20250514"
-    ]
     
     # Sort results
-    model_order = {model: i for i, model in enumerate(desired_order)}
+    model_order = {model: i for i, model in enumerate(MODEL_ORDER)}
     results_df['order'] = results_df['Model'].map(lambda x: model_order.get(x, 999))
     results_df = results_df.sort_values(by=['order', 'Pass@10 (%)'], ascending=[True, False]).drop(columns=['order'])
     
@@ -109,7 +101,7 @@ def calculate_pass_rates(file_path: str):
         
     print("="*120)
     
-    out_file = "../data/pass_rates.csv"
+    out_file = os.path.join(DATA_DIR, "pass_rates.csv")
     results_df.to_csv(out_file, index=False)
     print(f"\nSaved results to {out_file}")
 
@@ -140,4 +132,4 @@ def calculate_pass_rates(file_path: str):
     print("\\end{table}")
 
 if __name__ == '__main__':
-    calculate_pass_rates('../data/results.csv')
+    calculate_pass_rates(RESULTS_CSV)

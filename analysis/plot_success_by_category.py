@@ -1,9 +1,11 @@
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from typing import Dict, List
-from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS, wilson_halfwidths
+from common import FEEDBACK_COLS, MODEL_ABBREVIATIONS, PLOTS_DIR, RESULTS_CSV, SUCCESS, order_models
+from plot_style import COLORS, apply_plot_style, wilson_halfwidths
 
 apply_plot_style()
 
@@ -17,19 +19,7 @@ def get_category_data_from_csv(file_path):
     models = df['Model'].unique()
     models = [m for m in models if 'codestral' not in m.lower()]
     
-    desired_order = [
-        "llama-3.3-70b-instruct",
-        "codestral-22b",
-        "qwen2.5-coder-32b-instruct",
-        "qwen3-coder",
-        "gpt-oss_20b",
-        "gpt-oss_120b",
-        "gpt-5-2025-08-07",
-        "claude-sonnet-4-20250514"
-    ]
-    model_order = [m for m in desired_order if m in models]
-    remaining = [m for m in models if m not in model_order]
-    models = model_order + remaining
+    models = order_models(models)
 
 
     categories = [
@@ -64,11 +54,11 @@ def get_category_data_from_csv(file_path):
                 if str(row['Success']) == 'True':
                     is_success = True
                 else:
-                    rounds_content = [row[f'Feedback_Round_{i}'] for i in range(6)]
+                    rounds_content = [row[col] for col in FEEDBACK_COLS]
                     for content in rounds_content:
                         if pd.isna(content) or content == '':
                             continue
-                        if 'unit tests were successful' in str(content):
+                        if SUCCESS in str(content):
                              is_success = True
                              break
                 
@@ -120,12 +110,12 @@ def visualize_prompt_classification_success(data: Dict[str, Dict[str, float]], c
     plt.legend(bbox_to_anchor=(0.5, 1.08), loc='lower center', ncol=3)
     plt.tight_layout()
     
-    output_file = '../plots/success_by_model_by_task_category_in_percent.png'
+    output_file = os.path.join(PLOTS_DIR, 'success_by_model_by_task_category_in_percent.png')
     plt.savefig(output_file)
     print(f"Plot saved to {output_file}")
     # plt.show()
 
 if __name__ == "__main__":
-    data, counts = get_category_data_from_csv('../data/results.csv')
+    data, counts = get_category_data_from_csv(RESULTS_CSV)
     if data:
         visualize_prompt_classification_success(data, counts)

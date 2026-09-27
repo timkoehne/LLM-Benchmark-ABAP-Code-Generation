@@ -3,38 +3,21 @@ import os
 import glob
 import pandas as pd
 
-# Every feedback message the benchmark harness can send back to the model.
-# The check has to be exhaustive and ordered: "The unittest syntax check
-# failed..." must be tested before "The syntax check failed...", and the four
-# structural messages below were missing entirely in earlier versions, which
-# silently dropped ~11% of all feedback events and shifted every round index
-# towards zero.
-FEEDBACK_MESSAGES = [
-    ("The unit tests were successful", "unit tests were successful"),
-    ("The unittest syntax check failed", "unittest syntax check failed"),
-    ("The syntax check failed", "syntax check failed"),
-    ("The unit test failed", "unit test failed"),
-    ("The class could not be created", "class could not be created"),
-    ("The source code could not be set", "source code could not be set"),
-    ("Class name not found", "class name not found"),
-    ("There should only be the one public method", "not one public method"),
-]
-
-
-def classify_feedback(content_txt):
-    """Return the status label for a feedback message, or None if it is not one."""
-    text = content_txt.lstrip()
-    for prefix, label in FEEDBACK_MESSAGES:
-        if text.startswith(prefix):
-            return label
-    return None
+from common import (
+    CATEGORIES,
+    CATEGORY_RENAME,
+    DATA_DIR,
+    FEEDBACK_COLS,
+    LAST_ROUND,
+    PROMPT_CLASSIFICATION_CSV,
+    RESULTS_CSV,
+    SUCCESS,
+    classify_feedback,
+)
 
 
 def consolidate_results():
-    root_dir = ".."
-    data_dir = os.path.join(root_dir, "data")
-
-    json_files = glob.glob(os.path.join(data_dir, "*.json"))
+    json_files = glob.glob(os.path.join(DATA_DIR, "*.json"))
     
     data = []
 
@@ -71,12 +54,7 @@ def consolidate_results():
                     "Prompt": prompt_id,
                     "Repetition": rep_idx,
                     "Success": "False",
-                    "Feedback_Round_0": None,
-                    "Feedback_Round_1": None,
-                    "Feedback_Round_2": None,
-                    "Feedback_Round_3": None,
-                    "Feedback_Round_4": None,
-                    "Feedback_Round_5": None
+                    **{col: None for col in FEEDBACK_COLS},
                 }
                 
                 feedback_round = 0
@@ -87,17 +65,17 @@ def consolidate_results():
                         
                         feedback_status = classify_feedback(content_txt)
                         is_feedback = feedback_status is not None
-                        if feedback_status == "unit tests were successful":
+                        if feedback_status == SUCCESS:
                             row["Success"] = "True"
                     
                         if is_feedback:
-                            if feedback_round <= 5:
+                            if feedback_round <= LAST_ROUND:
                                 row[f"Feedback_Round_{feedback_round}"] = feedback_status
                             feedback_round += 1
                 data.append(row)
     df = pd.DataFrame(data)
     
-    classification_path = os.path.join(data_dir, "prompt_classification.csv")
+    classification_path = PROMPT_CLASSIFICATION_CSV
     print(f"Checking for classification at: {os.path.abspath(classification_path)}")
     if os.path.exists(classification_path):
         print(f"Loading classification from {classification_path}")
@@ -108,17 +86,11 @@ def consolidate_results():
             elif 'Nr' in class_df.columns:
                  class_df['Prompt_ID'] = class_df['Nr'].astype(str)
             
-            rename_map = {
-                'List & Array Operations': 'List or Array Operation',
-                'Mathematical Calculations': 'Mathematical Calculation',
-                'Logical Checks': 'Logical Condition',
-                'Database Operations (ABAP)': 'ABAP Database Operation'
-            }
-            class_df = class_df.rename(columns=rename_map)
+            class_df = class_df.rename(columns=CATEGORY_RENAME)
             
             class_df = class_df.replace('X', 'True')
 
-            cols_to_keep = ['Prompt_ID', 'String Handling', 'List or Array Operation', 'Mathematical Calculation', 'Logical Condition', 'ABAP Database Operation']
+            cols_to_keep = ['Prompt_ID'] + CATEGORIES
             cols_to_keep = [c for c in cols_to_keep if c in class_df.columns]
             
             class_df = class_df[cols_to_keep]
@@ -139,7 +111,7 @@ def consolidate_results():
     except:
         df = df.sort_values(by=['Model', 'Prompt', 'Repetition'])
 
-    output_path = os.path.join(data_dir, "results.csv")
+    output_path = RESULTS_CSV
     df.to_csv(output_path, sep=';', index=False)
     print(f"Successfully created {output_path} with {len(df)} rows.")
 

@@ -1,8 +1,10 @@
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Dict, List, Set, Tuple
-from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS
+from common import FEEDBACK_COLS, MODEL_ABBREVIATIONS, PLOTS_DIR, RESULTS_CSV, SUCCESS, order_models
+from plot_style import COLORS, apply_plot_style
 
 apply_plot_style()
 
@@ -18,19 +20,7 @@ def get_unsolved_prompts_per_model(file_path: str) -> Tuple[Dict[str, Set[str]],
     models = df['Model'].unique()
     models = [m for m in models if 'codestral' not in m.lower()]
     
-    desired_order = [
-        "llama-3.3-70b-instruct",
-        "codestral-22b",
-        "qwen2.5-coder-32b-instruct",
-        "qwen3-coder",
-        "gpt-oss_20b",
-        "gpt-oss_120b",
-        "gpt-5-2025-08-07",
-        "claude-sonnet-4-20250514"
-    ]
-    model_order = [m for m in desired_order if m in models]
-    remaining = [m for m in models if m not in model_order]
-    final_models = model_order + remaining
+    final_models = order_models(models)
     
     unsolved_prompts = {}
 
@@ -51,11 +41,11 @@ def get_unsolved_prompts_per_model(file_path: str) -> Tuple[Dict[str, Set[str]],
                 if str(row['Success']).strip().lower() == 'true':
                     is_success = True
                 else:
-                    rounds_content = [row[f'Feedback_Round_{i}'] for i in range(6)]
+                    rounds_content = [row[col] for col in FEEDBACK_COLS]
                     for content in rounds_content:
                         if pd.isna(content) or content == '':
                             continue
-                        if 'unit tests were successful' in str(content):
+                        if SUCCESS in str(content):
                             is_success = True
                             break
                 
@@ -103,7 +93,7 @@ def plot_unsolved_counts(unsolved_prompts: Dict[str, Set[str]], models: List[str
     ax.set_ylabel("Number of Unsolved Prompts")
     
     plt.tight_layout()
-    output_file = '../plots/unsolved_prompts_per_model.png'
+    output_file = os.path.join(PLOTS_DIR, 'unsolved_prompts_per_model.png')
     plt.savefig(output_file)
     print(f"\nPlot saved to {output_file}")
 
@@ -126,7 +116,7 @@ def print_unsolved_details(unsolved_prompts: Dict[str, Set[str]], models: List[s
                 print("  " + ", ".join(str(pid) for pid in chunk))
 
 if __name__ == "__main__":
-    file_path = '../data/results.csv'
+    file_path = RESULTS_CSV
     unsolved_prompts, ordered_models = get_unsolved_prompts_per_model(file_path)
     
     if unsolved_prompts:

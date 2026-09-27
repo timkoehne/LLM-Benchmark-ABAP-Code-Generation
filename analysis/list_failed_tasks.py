@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 from typing import Dict, List
+from common import FEEDBACK_COLS, RESULTS_CSV, SUCCESS, order_models
 
 def get_failed_task_counts(file_path):
     try:
@@ -12,19 +13,7 @@ def get_failed_task_counts(file_path):
 
     target_models = df['Model'].unique()
     
-    desired_order = [
-        "llama-3.3-70b-instruct",
-        "codestral-22b",
-        "qwen2.5-coder-32b-instruct",
-        "qwen3-coder",
-        "gpt-oss_20b",
-        "gpt-oss_120b",
-        "gpt-5-2025-08-07",
-        "claude-sonnet-4-20250514"
-    ]
-    model_order = [m for m in desired_order if m in target_models]
-    remaining = [m for m in target_models if m not in model_order]
-    target_models = model_order + remaining
+    target_models = order_models(target_models)
     
     # print(f"Models considered: {target_models}")
     
@@ -68,11 +57,11 @@ def get_failed_task_counts(file_path):
                     if str(row['Success']) == 'True':
                         is_success = True
                     else:
-                        rounds_content = [row[f'Feedback_Round_{i}'] for i in range(6)]
+                        rounds_content = [row[col] for col in FEEDBACK_COLS]
                         for content in rounds_content:
                             if pd.isna(content) or content == '':
                                 continue
-                            if 'unit tests were successful' in str(content):
+                            if SUCCESS in str(content):
                                 is_success = True
                                 break
                     
@@ -111,7 +100,7 @@ def list_failed_tasks(failed_task_ids: Dict[str, Dict[str, set]]):
 
 if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(current_dir, '../data/results.csv')
+    file_path = RESULTS_CSV
     failed_task_ids = get_failed_task_counts(file_path)
     if failed_task_ids:
         list_failed_tasks(failed_task_ids)

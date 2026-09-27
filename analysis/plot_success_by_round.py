@@ -1,9 +1,11 @@
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from typing import Dict, List
-from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS, wilson_halfwidths
+from common import FEEDBACK_COLS, MAX_ROUNDS, ROUND_LABELS, MODEL_ABBREVIATIONS, PLOTS_DIR, RESULTS_CSV, SUCCESS, order_models
+from plot_style import COLORS, apply_plot_style, wilson_halfwidths
 
 apply_plot_style()
 
@@ -17,19 +19,7 @@ def get_model_data_from_csv(file_path):
     models = df['Model'].unique()
     models = [m for m in models if 'codestral' not in m.lower()]
     
-    desired_order = [
-        "llama-3.3-70b-instruct",
-        "codestral-22b",
-        "qwen2.5-coder-32b-instruct",
-        "qwen3-coder",
-        "gpt-oss_20b",
-        "gpt-oss_120b",
-        "gpt-5-2025-08-07",
-        "claude-sonnet-4-20250514"
-    ]
-    model_order = [m for m in desired_order if m in models]
-    remaining = [m for m in models if m not in model_order]
-    models = model_order + remaining
+    models = order_models(models)
 
     
     model_data = {}
@@ -42,7 +32,7 @@ def get_model_data_from_csv(file_path):
         
         cumulative_success = []
         
-        for r in range(6):
+        for r in range(MAX_ROUNDS):
             success_count = 0
             for _, row in model_df.iterrows():
                 is_success = False
@@ -51,13 +41,13 @@ def get_model_data_from_csv(file_path):
                 if str(row['Success']) == 'True':
                      is_success = True
                 
-                rounds_content = [row[f'Feedback_Round_{i}'] for i in range(6)]
+                rounds_content = [row[col] for col in FEEDBACK_COLS]
                 found_string = False
                 for idx, content in enumerate(rounds_content):
                     if pd.isna(content) or content == '':
                         break
                     duration = idx
-                    if 'unit tests were successful' in str(content):
+                    if SUCCESS in str(content):
                         found_string = True
                         break
                 
@@ -75,20 +65,12 @@ def get_model_data_from_csv(file_path):
 
 def visualize_success_by_llm(model_data: Dict[str, List[float]], sample_counts: Dict[str, int] = None):
     models = list(model_data.keys())
-    rounds = list(range(6))
+    rounds = list(range(MAX_ROUNDS))
     bar_width = 0.13
     x = np.arange(len(models))
 
     fig, ax = plt.subplots(figsize=(12, 7))
 
-    feedback_labels = [
-        "No Feedback",
-        "1 Feedback",
-        "2 Feedbacks",
-        "3 Feedbacks",
-        "4 Feedbacks",
-        "5 Feedbacks",
-    ]
 
     for i in rounds:
         round_values = [model_data[model][i] for model in models]
@@ -101,12 +83,12 @@ def visualize_success_by_llm(model_data: Dict[str, List[float]], sample_counts: 
         else:
             errors = None
             
-        bar_positions = x + (i - 2.5) * bar_width
+        bar_positions = x + (i - (MAX_ROUNDS - 1) / 2) * bar_width
         ax.bar(
             bar_positions,
             round_values,
             width=bar_width,
-            label=feedback_labels[i],
+            label=ROUND_LABELS[i],
             color=COLORS[i % len(COLORS)],
             yerr=errors if sample_counts else None,
             capsize=3,
@@ -120,7 +102,7 @@ def visualize_success_by_llm(model_data: Dict[str, List[float]], sample_counts: 
     ax.legend(title="Feedback Rounds", loc='best')
     plt.tight_layout()
     
-    output_file = '../plots/success_by_model_by_feedbackround_in_percent.png'
+    output_file = os.path.join(PLOTS_DIR, 'success_by_model_by_feedbackround_in_percent.png')
     plt.savefig(output_file)
     print(f"Plot saved to {output_file}")
     # plt.show()
@@ -136,7 +118,7 @@ def print_success_table(model_data: Dict[str, List[float]]):
         print(row)
 
 if __name__ == "__main__":
-    data, counts = get_model_data_from_csv('../data/results.csv')
+    data, counts = get_model_data_from_csv(RESULTS_CSV)
     if data:
         visualize_success_by_llm(data, counts)
         print_success_table(data)
