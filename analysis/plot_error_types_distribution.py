@@ -7,6 +7,20 @@ from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS
 
 apply_plot_style()
 
+# One key per feedback status written by consolidate_results.py.  The previous
+# version tested for substrings that never appeared ("syntax error in unit
+# test") and double-counted others, so four of the eight statuses were missed.
+ERROR_KEY_BY_STATUS = {
+    "class could not be created": "class_creation_errors",
+    "source code could not be set": "source_code_errors",
+    "syntax check failed": "syntax_errors",
+    "unittest syntax check failed": "unittest_syntax_errors",
+    "class name not found": "class_name_errors",
+    "not one public method": "public_method_errors",
+    "unit test failed": "unit_test_failures",
+}
+
+
 def get_error_summary_from_csv(file_path):
     try:
         df = pd.read_csv(file_path, sep=';')
@@ -21,41 +35,19 @@ def get_error_summary_from_csv(file_path):
     for model in models:
         model_df = df[df['Model'] == model]
         
-        errors = {
-            "class_creation_errors": 0,
-            "class_name_errors": 0,
-            "syntax_errors": 0,
-            "source_code_errors": 0,
-            "public_method_errors": 0,
-            "unit_test_failures": 0,
-            "unittest_syntax_errors": 0
-        }
-        
+        errors = {k: 0 for k in ERROR_KEY_BY_STATUS.values()}
+
         feedback_cols = [c for c in df.columns if 'Feedback_Round' in c]
-        
+
         for _, row in model_df.iterrows():
             for col in feedback_cols:
                 val = row[col]
                 if pd.isna(val) or val == '':
                     continue
-                
-                txt = str(val).lower()
-                
-                if "class could not be created" in txt:
-                    errors["class_creation_errors"] += 1
-                elif "syntax check failed" in txt:
-                    errors["syntax_errors"] += 1
-                elif "unit test failed" in txt:
-                    errors["unit_test_failures"] += 1
-                
-                if "class name" in txt:
-                    errors["class_name_errors"] += 1
-                if "source code" in txt:
-                    errors["source_code_errors"] += 1
-                if "public method" in txt:
-                    errors["public_method_errors"] += 1
-                if "syntax error in unit test" in txt:
-                     errors["unittest_syntax_errors"] += 1
+
+                key = ERROR_KEY_BY_STATUS.get(str(val).strip().lower())
+                if key is not None:
+                    errors[key] += 1
 
         summary[model] = errors
         
@@ -66,10 +58,18 @@ def visualize_combined_summary_errors(summary: dict):
     combined_counts = {}
     
     for model, errors in summary.items():
+        # Same grouping as Figure 6: "class name not found" and "not one public
+        # method" reject the generated source, so they are syntax-stage
+        # failures; a failing unit-test syntax check is also a syntax failure,
+        # not a semantic one - the tests never ran.
         combined = {
-            "class_creation_errors": errors.get("class_creation_errors", 0) + errors.get("class_name_errors", 0),
-            "syntax_errors": errors.get("syntax_errors", 0) + errors.get("source_code_errors", 0) + errors.get("public_method_errors", 0),
-            "unit_test_errors": errors.get("unit_test_failures", 0) + errors.get("unittest_syntax_errors", 0),
+            "class_creation_errors": errors.get("class_creation_errors", 0)
+            + errors.get("source_code_errors", 0),
+            "syntax_errors": errors.get("syntax_errors", 0)
+            + errors.get("unittest_syntax_errors", 0)
+            + errors.get("class_name_errors", 0)
+            + errors.get("public_method_errors", 0),
+            "unit_test_errors": errors.get("unit_test_failures", 0),
         }
         
         total_errors = sum(combined.values())

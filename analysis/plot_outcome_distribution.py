@@ -25,6 +25,22 @@ OUTCOME_COLORS = {
 }
 
 
+# Maps each feedback status written by consolidate_results.py to the pipeline
+# stage the attempt terminated in.  "class name not found" and "not one public
+# method" are structural rejections of the generated source, so they belong to
+# the syntax/structure stage, not to class creation.
+OUTCOME_BY_STATUS = {
+    "unit tests were successful": "Success",
+    "syntax check failed": "Syntax Error",
+    "unittest syntax check failed": "Syntax Error",
+    "class name not found": "Syntax Error",
+    "not one public method": "Syntax Error",
+    "unit test failed": "Semantic Error",
+    "class could not be created": "Class Creation Error",
+    "source code could not be set": "Class Creation Error",
+}
+
+
 def get_final_outcome(row, feedback_cols):
     """Return the final outcome category for a single attempt."""
     # Walk through rounds and remember the last non-empty feedback
@@ -38,18 +54,9 @@ def get_final_outcome(row, feedback_cols):
     # Explicit success flag or successful unit-test message
     if row["Success"] is True or str(row["Success"]) == "True":
         return "Success"
-    if last_feedback == "unit tests were successful":
-        return "Success"
-
-    if last_feedback == "class could not be created":
-        return "Class Creation Error"
-    if last_feedback == "syntax check failed":
-        return "Syntax Error"
-    if last_feedback == "unit test failed":
-        return "Semantic Error"
 
     # No feedback at all → treat as class-creation failure (generation failed immediately)
-    return "Class Creation Error"
+    return OUTCOME_BY_STATUS.get(last_feedback, "Class Creation Error")
 
 
 def get_outcome_distribution(file_path):

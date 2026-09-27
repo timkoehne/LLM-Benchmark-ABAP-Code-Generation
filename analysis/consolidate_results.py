@@ -3,6 +3,33 @@ import os
 import glob
 import pandas as pd
 
+# Every feedback message the benchmark harness can send back to the model.
+# The check has to be exhaustive and ordered: "The unittest syntax check
+# failed..." must be tested before "The syntax check failed...", and the four
+# structural messages below were missing entirely in earlier versions, which
+# silently dropped ~11% of all feedback events and shifted every round index
+# towards zero.
+FEEDBACK_MESSAGES = [
+    ("The unit tests were successful", "unit tests were successful"),
+    ("The unittest syntax check failed", "unittest syntax check failed"),
+    ("The syntax check failed", "syntax check failed"),
+    ("The unit test failed", "unit test failed"),
+    ("The class could not be created", "class could not be created"),
+    ("The source code could not be set", "source code could not be set"),
+    ("Class name not found", "class name not found"),
+    ("There should only be the one public method", "not one public method"),
+]
+
+
+def classify_feedback(content_txt):
+    """Return the status label for a feedback message, or None if it is not one."""
+    text = content_txt.lstrip()
+    for prefix, label in FEEDBACK_MESSAGES:
+        if text.startswith(prefix):
+            return label
+    return None
+
+
 def consolidate_results():
     root_dir = ".."
     data_dir = os.path.join(root_dir, "data")
@@ -58,22 +85,10 @@ def consolidate_results():
                     if message["role"] == "user":
                         content_txt = message["content"]
                         
-                        is_feedback = False
-                        feedback_status = None
-                        
-                        if "The syntax check failed" in content_txt:
-                            feedback_status = "syntax check failed"
-                            is_feedback = True
-                        elif "The unit tests were successful" in content_txt:
-                            feedback_status = "unit tests were successful"
-                            is_feedback = True
+                        feedback_status = classify_feedback(content_txt)
+                        is_feedback = feedback_status is not None
+                        if feedback_status == "unit tests were successful":
                             row["Success"] = "True"
-                        elif "The unit test failed" in content_txt:
-                            feedback_status = "unit test failed"
-                            is_feedback = True
-                        elif "The class could not be created" in content_txt:
-                             feedback_status = "class could not be created"
-                             is_feedback = True
                     
                         if is_feedback:
                             if feedback_round <= 5:
