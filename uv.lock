@@ -4,15 +4,15 @@ requires-python = ">=3.13"
 
 [[package]]
 name = "abap-adt-py"
-version = "0.1.4"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/84/90/7a43fd5f38b5607d84ab55090c3aca5b463711c102d33591beff7499660b/abap_adt_py-0.1.4.tar.gz", hash = "sha256:66918a24deb5f4fc7ad45c55ee6766a520b570afe64cbddbaa5e5f5b487c5520", size = 13058, upload-time = "2025-08-12T12:50:07.895Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/04/fa/22d62df4ae8d19686f2ba0cb27abe82ec3217f88be73b1519f68ce2a8177/abap_adt_py-0.2.0.tar.gz", hash = "sha256:ebe9f0fbfb64348b8e595d3438ad2d0995070b26205bb9df42c2cd26c7dafd28", size = 34037, upload-time = "2026-09-27T15:09:59.595Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/27/c1/e8887d2249298ef9a612d75419ec9ca432dc9613f02562b8e778e3ebe076/abap_adt_py-0.1.4-py3-none-any.whl", hash = "sha256:8e50460ac9b57639523d15b144a8a7f9c5855536f08af15b363f6a2ef6a90db1", size = 16520, upload-time = "2025-08-12T12:50:07.011Z" },
+    { url = "https://files.pythonhosted.org/packages/63/77/c92caba8ef4e969048beccd85fb938d65f420b33c36e58846af9037da98e/abap_adt_py-0.2.0-py3-none-any.whl", hash = "sha256:7d08ef37c568ed817147268f0b6190fa91f320c53e19132a0d0daa76c44dc919", size = 41522, upload-time = "2026-09-27T15:09:58.399Z" },
 ]
 
 [[package]]
@@ -476,7 +476,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "abap-adt-py", specifier = ">=0.1.4" },
+    { name = "abap-adt-py", specifier = ">=0.2.0" },
     { name = "anthropic", specifier = ">=0.72.0" },
     { name = "lifelines", specifier = ">=0.30.0" },
     { name = "matplotlib", specifier = ">=3.10.7" },
