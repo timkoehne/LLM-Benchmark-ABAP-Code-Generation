@@ -289,6 +289,10 @@ ERRORS_BY_CATEGORY = {
             "AMDP: Only elementary or table-like IMPORTING parameters allowed with RETURNING.",
             "In AMDP methods, only elementary or table-like IMPORTING parameters are allowed in combination with RETURNING.*",
         ),
+        Error(
+            "x must be a character-like data object.",
+            r'".*" must be a character-like data object \(data type C, N, D, T, or STRING\)\.',
+        ),
     ],
     "OOP Errors": [
         Error("Chained attribute access not allowed", "Chained access to attributes is not allowed\\."),
@@ -358,6 +362,10 @@ ERRORS_BY_CATEGORY = {
         Error(
             "AMDP class must implement IF_AMDP_MARKER_HDB.",
             'Database procedures managed by ABAP can only be defined in classes that implement the marker interface "IF_AMDP_MARKER_HDB"\\.',
+        ),
+        Error(
+            "Method does not exist, similar names do exist.",
+            r'The method ".*" does not exist\. The following methods with similar names do exist.*',
         ),
     ],
     "Declaration Errors": [
@@ -454,6 +462,12 @@ ERRORS_BY_CATEGORY = {
             "Message class must be specified correctly",
             r'The message class must either be in parentheses after the number or specified using the addition "MESSAGE-ID".*',
         ),
+        # Catch-all.  It must stay last in the last category: every error no
+        # earlier pattern matched is counted here, which is how the published
+        # Table 12 was produced.  It also means "Declaration Errors" is really
+        # "declaration errors plus everything uncategorised" - the analysis
+        # scripts report the catch-all share separately so the inflation is
+        # visible.
         Error("Other", r".*"),
     ],
 }

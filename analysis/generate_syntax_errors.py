@@ -5,7 +5,10 @@ import sys
 import re
 import ast
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# abap_errors.py lives in src/ since the repository cleanup.
+sys.path.append(
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
+)
 from abap_errors import ERRORS_BY_CATEGORY
 
 def generate_syntax_errors():
@@ -37,6 +40,7 @@ def generate_syntax_errors():
         results[model_name] = {category: {error.regex: [] for error in errors} 
                                for category, errors in ERRORS_BY_CATEGORY.items()}
         results[model_name]["Uncategorized"] = {"Other": []}
+        skipped_warnings = 0
 
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -60,6 +64,17 @@ def generate_syntax_errors():
                                 
                                 for error_item in error_list:
                                     if isinstance(error_item, dict) and 'short_text' in error_item:
+                                        # The syntax check reports errors ("E")
+                                        # and warnings ("W") in the same list.
+                                        # Warnings are not failures - they do
+                                        # not stop activation - so they are not
+                                        # part of the error profile.  Counting
+                                        # them mixes ~3,700 deprecation and
+                                        # style notices into the categories.
+                                        if error_item.get('type') != 'E':
+                                            skipped_warnings += 1
+                                            continue
+
                                         short_text = error_item['short_text']
                                         
                                         matched = False
@@ -77,6 +92,16 @@ def generate_syntax_errors():
                                             
                             except (SyntaxError, ValueError, IndexError) as e:
                                 pass
+
+        catch_all = len(results[model_name]["Declaration Errors"].get(".*", []))
+        categorized = sum(
+            len(v) for cat in results[model_name].values() for v in cat.values()
+        )
+        print(
+            f"  {categorized} errors categorized "
+            f"({catch_all} of them only by the '.*' catch-all), "
+            f"{skipped_warnings} warnings skipped"
+        )
 
     final_results = {}
     for model, categories in results.items():
