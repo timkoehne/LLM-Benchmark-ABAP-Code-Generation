@@ -1,0 +1,9 @@
+Model,String Handling,List or Array Operation,Mathematical Calculation,Logical Condition,ABAP Database Operation
+llama-3.3-70b-instruct,143,92,251,228,42
+qwen2.5-coder-32b-instruct,87,70,167,143,23
+qwen3-coder,145,113,227,235,35
+gpt-oss_20b,199,199,367,335,39
+gpt-oss_120b,347,351,499,565,93
+gpt-5-2025-08-07,622,741,715,969,109
+claude-sonnet-4-20250514,620,691,669,960,106
+Tasks in Category,760,1080,930,1250,160

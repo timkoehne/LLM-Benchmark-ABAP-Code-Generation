@@ -1,0 +1,8 @@
+Model,No Feedback,1 Feedback,2 Feedbacks,3 Feedbacks,4 Feedbacks,5 Feedbacks,Total
+llama-3.3-70b-instruct,0,0,71,264,327,375,1800
+qwen2.5-coder-32b-instruct,111,156,182,212,224,234,1800
+qwen3-coder,228,307,332,356,365,377,1800
+gpt-oss_20b,89,318,414,462,499,528,1800
+gpt-oss_120b,34,330,545,683,776,831,1800
+gpt-5-2025-08-07,456,969,1235,1355,1385,1388,1800
+claude-sonnet-4-20250514,625,828,1094,1219,1314,1344,1800
