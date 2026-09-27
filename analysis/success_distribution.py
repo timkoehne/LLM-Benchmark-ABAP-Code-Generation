@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
-from plot_style import COLORS, apply_plot_style
+from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS
 
 apply_plot_style()
 
@@ -38,63 +38,59 @@ def plot_comparative_histogram(model_data):
         print("No model data to plot.")
         return
 
-    bins = [-0.01, 0.1001, 0.2001, 0.3001, 0.4001, 0.5001, 0.6001, 0.7001, 0.8001, 0.9001, 1.01]
-    
+    # Each task is run 10 times, so the success count is a discrete value 0..10
+    values = np.arange(0, 11)
+
     plot_data = {}
     for model, series in model_data.items():
-        counts, _ = np.histogram(series, bins=bins)
+        success_counts = np.round(series.values * 10).astype(int)
+        counts = np.bincount(success_counts, minlength=11)
         total = len(series)
         if total > 0:
             percents = (counts / total) * 100
         else:
             percents = np.zeros(len(counts))
         plot_data[model] = percents
-        
+
     fig, ax = plt.subplots(figsize=(12, 6))
-    
-    bin_width = 0.1
-    bar_width = bin_width * 0.4
-    
-    bin_centers = np.array([0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95])
-    
-    labels = ["0-10%", "11-20%", "21-30%", "31-40%", "41-50%", "51-60%", "61-70%", "71-80%", "81-90%", "91-100%"]
-    
+
+    bar_width = 0.4
+
     models = list(model_data.keys())
-    model_colors = [COLORS[2], COLORS[5]] 
-    
+    model_colors = [COLORS[2], COLORS[5]]
+
     for i, model in enumerate(models):
         if i >= len(model_colors):
-            break 
+            break
         offset = (i - 0.5) * bar_width
         bars = ax.bar(
-            bin_centers + offset, 
-            plot_data[model], 
-            width=bar_width, 
-            label=model, 
+            values + offset,
+            plot_data[model],
+            width=bar_width,
+            label=MODEL_ABBREVIATIONS.get(model, model),
             color=model_colors[i],
             edgecolor='white'
         )
-        
+
         for bar in bars:
             height = bar.get_height()
             if height > 0:
                 ax.text(
-                    bar.get_x() + bar.get_width() / 2, 
-                    height + 0.5, 
-                    f'{int(round(height))}%', 
-                    ha='center', 
-                    va='bottom', 
-                    fontsize=8, 
+                    bar.get_x() + bar.get_width() / 2,
+                    height + 0.5,
+                    f'{int(round(height))}%',
+                    ha='center',
+                    va='bottom',
+                    fontsize=8,
                     color='black'
                 )
-    
-    ax.set_xlabel('Success Rate Interval')
+
+    ax.set_xlabel('Number of Successful Runs (out of 10)')
     ax.set_ylabel('Percent of Tasks')
-    ax.set_title('Distribution of Task Success Rates: GPT-5 vs Claude')
-    
-    ax.set_xticks(bin_centers)
-    ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=9)
-    
+
+    ax.set_xticks(values)
+    ax.set_xticklabels([str(v) for v in values])
+
     ax.yaxis.set_major_formatter(PercentFormatter())
     ax.legend()
     
