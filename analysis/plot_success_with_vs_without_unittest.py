@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from typing import Dict, Tuple
-from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS
+from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS, wilson_halfwidths
 
 apply_plot_style()
 
@@ -93,19 +93,9 @@ def plot_comparison(success_normal: Dict[str, float], success_no_ut: Dict[str, f
     normal_vals = [success_normal[m] for m in models]
     no_ut_vals = [success_no_ut[m] for m in models]
     
-    # Calculate error margins if sample counts format allows
+    # 95% Wilson score half-widths, matching the interval named in the paper
     def get_errors(values):
-        errors = []
-        for i, model in enumerate(models):
-            p = values[i] / 100.0
-            n = sample_counts[model]
-            if n > 0:
-                se = np.sqrt(p * (1 - p) / n)
-                margin = 1.96 * se * 100
-                errors.append(margin)
-            else:
-                errors.append(0)
-        return errors
+        return wilson_halfwidths(values, [sample_counts.get(m, 0) for m in models])
         
     normal_errs = get_errors(normal_vals)
     no_ut_errs = get_errors(no_ut_vals)
@@ -136,11 +126,11 @@ def plot_comparison(success_normal: Dict[str, float], success_no_ut: Dict[str, f
     # Add text labels
     for i, bar in enumerate(bars1):
         height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width() / 2, height + no_ut_errs[i] + 1, f'{height:.1f}%', ha='center', va='bottom', fontsize=9, rotation=0)
+        ax.text(bar.get_x() + bar.get_width() / 2, height + no_ut_errs[1][i] + 1, f'{height:.1f}%', ha='center', va='bottom', fontsize=9, rotation=0)
         
     for i, bar in enumerate(bars2):
         height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width() / 2, height + normal_errs[i] + 1, f'{height:.1f}%', ha='center', va='bottom', fontsize=9, rotation=0)
+        ax.text(bar.get_x() + bar.get_width() / 2, height + normal_errs[1][i] + 1, f'{height:.1f}%', ha='center', va='bottom', fontsize=9, rotation=0)
     
     ax.set_xticks(x)
     ax.set_xticklabels([MODEL_ABBREVIATIONS.get(m, m) for m in models], rotation=15, ha="right")

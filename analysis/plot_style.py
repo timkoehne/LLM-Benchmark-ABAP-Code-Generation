@@ -1,3 +1,4 @@
+import numpy as np
 import matplotlib.pyplot as plt
 
 COLORS = [
@@ -41,3 +42,27 @@ MODEL_ABBREVIATIONS = {
     'gpt-5-2025-08-07': 'GPT-5',
     'claude-sonnet-4-20250514': 'Claude-S4'
 }
+
+
+def wilson_halfwidths(p_percent, n, z=1.959963984540054):
+    """Asymmetric 95% Wilson score half-widths, in percentage points.
+
+    Returns (lower, upper) suitable for matplotlib's yerr.  The captions of
+    Figures 3 and 5 specify the Wilson interval; the Wald interval that was
+    used before collapses to zero width at p = 0, which is why models with no
+    successes showed no error bar at all.
+    """
+    p_percent = np.asarray(p_percent, dtype=float)
+    n = np.asarray(n, dtype=float)
+    p = p_percent / 100.0
+    with np.errstate(divide="ignore", invalid="ignore"):
+        denom = 1 + z * z / n
+        centre = (p + z * z / (2 * n)) / denom
+        half = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
+        lo = np.clip(centre - half, 0, 1)
+        hi = np.clip(centre + half, 0, 1)
+    # clamp: at p = 0 the two bounds coincide and float error can make the
+    # half-width a tiny negative number, which matplotlib rejects.
+    lo = np.maximum(np.where(n > 0, (p - lo) * 100, 0.0), 0.0)
+    hi = np.maximum(np.where(n > 0, (hi - p) * 100, 0.0), 0.0)
+    return np.vstack([lo, hi])

@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from typing import Dict, List
-from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS
+from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS, wilson_halfwidths
 
 apply_plot_style()
 
@@ -93,19 +93,13 @@ def visualize_success_by_llm(model_data: Dict[str, List[float]], sample_counts: 
     for i in rounds:
         round_values = [model_data[model][i] for model in models]
         
-        errors = []
-        for model in models:
-            if sample_counts and model in sample_counts:
-                p = model_data[model][i] / 100.0
-                n = sample_counts[model]
-                if n > 0:
-                    se = np.sqrt(p * (1 - p) / n)
-                    margin = 1.96 * se * 100
-                else:
-                    margin = 0
-                errors.append(margin)
-            else:
-                errors.append(0)
+        if sample_counts:
+            errors = wilson_halfwidths(
+                [model_data[m][i] for m in models],
+                [sample_counts.get(m, 0) for m in models],
+            )
+        else:
+            errors = None
             
         bar_positions = x + (i - 2.5) * bar_width
         ax.bar(

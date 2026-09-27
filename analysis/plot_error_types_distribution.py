@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from typing import Dict, List
-from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS
+from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS, wilson_halfwidths
 
 apply_plot_style()
 
@@ -113,18 +113,10 @@ def visualize_combined_summary_errors(summary: dict):
     for idx, etype in enumerate(error_types):
         error_props = df[etype].values
         
-        errors = []
-        
-        for model in models:
-            p = combined_summary[model][etype]
-            n = combined_counts[model]['total']
-            
-            if n > 0:
-                se = np.sqrt(p * (1 - p) / n)
-                margin = 1.96 * se
-            else:
-                margin = 0
-            errors.append(margin)
+        errors = wilson_halfwidths(
+            [combined_summary[m][etype] * 100 for m in models],
+            [combined_counts[m]['total'] for m in models],
+        ) / 100.0
 
         bar_positions = x + (idx - (num_error_types - 1) / 2) * bar_width
         ax.bar(

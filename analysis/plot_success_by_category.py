@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from typing import Dict, List
-from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS
+from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS, wilson_halfwidths
 
 apply_plot_style()
 
@@ -95,19 +95,13 @@ def visualize_prompt_classification_success(data: Dict[str, Dict[str, float]], c
     for i, category in enumerate(categories):
         values = [data[model][category] for model in models]
         
-        errors = []
-        for model in models:
-            if counts and category in counts[model]:
-                n = counts[model][category]
-                p = data[model][category] / 100.0
-                if n > 0:
-                    se = np.sqrt(p * (1 - p) / n)
-                    margin = 1.96 * se * 100
-                else:
-                    margin = 0
-                errors.append(margin)
-            else:
-                errors.append(0)
+        if counts:
+            errors = wilson_halfwidths(
+                [data[m][category] for m in models],
+                [counts[m].get(category, 0) for m in models],
+            )
+        else:
+            errors = None
 
         plt.bar(
             x + i * bar_width, 

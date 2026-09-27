@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
-from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS
+from plot_style import COLORS, apply_plot_style, MODEL_ABBREVIATIONS, wilson_halfwidths
 
 apply_plot_style()
 
@@ -59,17 +59,12 @@ def visualize_syntax_errors(json_path='../data/syntax_errors.json'):
     for idx, etype in enumerate(error_types):
         error_props = relative_df[etype].values
         
-        errors = []
-        for model in models:
-            p = relative_df.loc[model, etype]
-            n = total_counts.get(model, 0)
-            
-            if n > 0:
-                se = np.sqrt(p * (1 - p) / n)
-                margin = 1.96 * se
-            else:
-                margin = 0
-            errors.append(margin)
+        # 95% Wilson score half-widths; wilson_halfwidths works in percentage
+        # points, while relative_df holds proportions, so scale in and back out.
+        errors = wilson_halfwidths(
+            error_props * 100,
+            [total_counts.get(m, 0) for m in models],
+        ) / 100
 
         bar_positions = x + (idx - (num_error_types - 1) / 2) * bar_width
         
