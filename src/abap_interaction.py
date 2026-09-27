@@ -1,10 +1,21 @@
 from html import unescape
 import json
+import os
 from typing import List, Literal
 from abap_adt_py.adt_client import AdtClient
+from dotenv import load_dotenv
 import xml.etree.ElementTree as ET
 import re
 import tqdm
+
+
+load_dotenv()
+
+# Defaults match the ABAP Cloud Developer Trial 2025 Docker image.
+SAP_HOST = os.getenv("SAP_HOST", "http://localhost:50000")
+SAP_USER = os.getenv("SAP_USER", "DEVELOPER")
+SAP_PASSWORD = os.getenv("SAP_PASSWORD", "ABAPtr2025#SP00")
+SAP_CLIENT = os.getenv("SAP_CLIENT", "001")
 
 
 def get_unittest_src(unittest_file: str):
@@ -239,10 +250,10 @@ def add_to_chat(chat, content):
 
 def run_abap_interaction(model_name: str):
     client: AdtClient = AdtClient(
-        sap_host="http://localhost:50000",
-        username="DEVELOPER",
-        password="ABAPtr2022#01",
-        client="001",
+        sap_host=SAP_HOST,
+        username=SAP_USER,
+        password=SAP_PASSWORD,
+        client=SAP_CLIENT,
         language="EN",
     )
     client.login()
