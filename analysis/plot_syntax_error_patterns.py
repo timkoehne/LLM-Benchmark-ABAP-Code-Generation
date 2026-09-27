@@ -84,7 +84,6 @@ def visualize_syntax_errors(json_path='../data/syntax_errors.json'):
     ax.set_xlabel("Models")
     ax.set_ylabel("Percentage of Errors")
     ax.yaxis.set_major_formatter(PercentFormatter(1))
-    ax.set_title("Relative Distribution of Syntax/Lexical Errors by Model (with 95% CIs)")
     ax.legend(title="Error Category", bbox_to_anchor=(0.5, 1.08), loc='lower center', ncol=3)
 
     plt.tight_layout()

@@ -101,7 +101,6 @@ def plot_unsolved_counts(unsolved_prompts: Dict[str, Set[str]], models: List[str
     ax.set_xticks(x)
     ax.set_xticklabels([MODEL_ABBREVIATIONS.get(m, m) for m in models], rotation=15, ha="right")
     ax.set_ylabel("Number of Unsolved Prompts")
-    ax.set_title("Total Unsolved Prompts by Model (Never Succeeded in Any Repetition)")
     
     plt.tight_layout()
     output_file = '../plots/unsolved_prompts_per_model.png'

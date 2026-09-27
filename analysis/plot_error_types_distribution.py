@@ -135,7 +135,6 @@ def visualize_combined_summary_errors(summary: dict):
     ax.set_xlabel("Models")
     ax.set_ylabel("Percentage of Errors")
     ax.yaxis.set_major_formatter(PercentFormatter(1))
-    ax.set_title("Relative Distribution of Errors by Model (with 95% CIs)")
     ax.legend(title="Error Type", bbox_to_anchor=(0.5, 1.08), loc='lower center', ncol=3)
 
     plt.tight_layout()

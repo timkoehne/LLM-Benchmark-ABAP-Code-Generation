@@ -136,7 +136,6 @@ def plot_comparison(success_normal: Dict[str, float], success_no_ut: Dict[str, f
     ax.set_xticklabels([MODEL_ABBREVIATIONS.get(m, m) for m in models], rotation=15, ha="right")
     ax.set_ylabel("Successful Code Generations")
     ax.yaxis.set_major_formatter(PercentFormatter(100))
-    ax.set_title("Success Rate: Without Unit Test Improvement vs After 5 Feedback Rounds\n(with 95% Confidence Intervals)")
     ax.legend()
     
     plt.tight_layout()

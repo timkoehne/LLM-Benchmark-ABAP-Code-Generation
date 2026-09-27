@@ -130,7 +130,6 @@ def run_analysis():
              print("No samples for this model in subset.")
         print("\n")
 
-    plt.title('Kaplan-Meier Survival Curves (Database_Operations_ABAP == True)')
     plt.xlabel('Feedback Round Index (0-5)')
     plt.ylabel('Survival Probability')
     plt.ylim(0, 1.05)

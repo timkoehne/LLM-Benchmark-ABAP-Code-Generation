@@ -118,7 +118,6 @@ def run_analysis():
         kmf.plot_survival_function(color=color, linestyle=linestyle)
         print("\n")
 
-    plt.title('Kaplan-Meier Survival Curves by Model')
     plt.xlabel('Feedback Round Index (0-5)')
     plt.ylabel('Survival Probability')
     plt.ylim(0, 1.05)

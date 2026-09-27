@@ -136,7 +136,6 @@ def visualize_failed_tasks_intersection(failed_task_ids: Dict[str, Dict[str, set
         
     plt.xlabel("Task Category")
     plt.ylabel("Percentage of Mutually Failed Tasks")
-    plt.title(f"Tasks Failed by ALL {len(models)} Models (All Attempts)")
     
     plt.gca().yaxis.set_major_formatter(PercentFormatter())
     

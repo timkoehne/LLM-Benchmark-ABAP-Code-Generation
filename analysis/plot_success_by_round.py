@@ -117,7 +117,6 @@ def visualize_success_by_llm(model_data: Dict[str, List[float]], sample_counts: 
     ax.set_xticklabels([MODEL_ABBREVIATIONS.get(m, m) for m in models], rotation=15, ha="right")
     ax.set_ylabel("Cumulative Successful Runs")
     ax.yaxis.set_major_formatter(PercentFormatter(100))
-    ax.set_title("Cumulative Successful Code Generations by Feedback Round in Percent\n(with 95% Confidence Intervals)")
     ax.legend(title="Feedback Rounds", loc='best')
     plt.tight_layout()
     

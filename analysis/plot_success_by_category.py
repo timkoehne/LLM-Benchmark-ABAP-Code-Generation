@@ -116,7 +116,6 @@ def visualize_prompt_classification_success(data: Dict[str, Dict[str, float]], c
         
     plt.xticks(x + bar_width * (num_categories - 1) / 2, [MODEL_ABBREVIATIONS.get(m, m) for m in models], rotation=15, ha="right")
     plt.ylabel("Success Rate")
-    plt.title("Model Performance by Task Category (with 95% CIs)")
     plt.gca().yaxis.set_major_formatter(PercentFormatter(100))
     plt.legend(bbox_to_anchor=(0.5, 1.08), loc='lower center', ncol=3)
     plt.tight_layout()

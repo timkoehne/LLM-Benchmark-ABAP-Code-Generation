@@ -126,7 +126,6 @@ def plot_stacked_outcomes(pct, totals):
     ax.set_ylabel("Share of Attempts")
     ax.yaxis.set_major_formatter(PercentFormatter())
     ax.set_ylim(0, 100)
-    ax.set_title("Outcome Distribution per Model\n(Class Creation Errors, Syntax Errors, Semantic Errors, Successes)")
     ax.legend(title="Outcome", bbox_to_anchor=(0.5, 1.08), loc="lower center", ncol=4)
 
     plt.tight_layout()
