@@ -10,7 +10,7 @@ from anthropic.types import TextBlock
 from llms import RunnableModel
 from config import PROMPT_FILES, REPETITIONS, SYSTEM_PROMPT
 from feedback import FEEDBACK_SUCCESS
-from generate_llm_answers import read_prompt, remove_code_blocks
+from generate_llm_answers import check_batch_complete, read_prompt, remove_code_blocks
 
 
 def _build_single_batch_request(
@@ -152,6 +152,9 @@ def wait_for_batch_and_save(
         if status.processing_status == "ended":
             break
         time.sleep(30)
+    # Always rewrite the response file, so a batch without results cannot be
+    # checked against the previous round's answers.
+    open(save_file_batch_response, "w", encoding="utf-8").close()
     results_url = status.results_url
     if results_url:
         content = _retrieve_batch(client, batch_id)
@@ -175,4 +178,5 @@ def wait_for_batch_and_save(
                     failed += 1
                     print(f"request {entry.custom_id} failed")
         if failed > 0: print(f"{failed} requests failed")
-        _convert_to_json(save_file, save_file_batch, save_file_batch_response)
+    check_batch_complete(batch_id, save_file_batch, save_file_batch_response)
+    _convert_to_json(save_file, save_file_batch, save_file_batch_response)

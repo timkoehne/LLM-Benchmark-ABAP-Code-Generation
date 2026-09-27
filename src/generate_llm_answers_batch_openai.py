@@ -8,7 +8,7 @@ import openai
 from llms import RunnableModel
 from config import PROMPT_FILES, REPETITIONS, SYSTEM_PROMPT
 from feedback import FEEDBACK_SUCCESS
-from generate_llm_answers import read_prompt, remove_code_blocks
+from generate_llm_answers import check_batch_complete, read_prompt, remove_code_blocks
 
 
 def _build_single_batch_request(
@@ -160,12 +160,18 @@ def wait_for_batch_and_save(
 ):
     while True:
         status = _status_batch(client, batch_id)
-        if status.status == "completed" or status.status == "cancelled":
+        if status.status in ("completed", "cancelled", "failed", "expired"):
             break
         time.sleep(30)
+    if status.status != "completed":
+        print(f"batch {batch_id} ended with status {status.status}")
+    # Always rewrite the response file, so a batch without output cannot be
+    # checked against the previous round's answers.
+    content = ""
     output_file_id = status.output_file_id
     if output_file_id:
         content = _retrieve_batch(client, output_file_id)
-        with open(save_file_batch_response, "w", encoding="utf-8") as file:
-            file.write(content)
-        _convert_to_json(save_file, save_file_batch, save_file_batch_response)
+    with open(save_file_batch_response, "w", encoding="utf-8") as file:
+        file.write(content)
+    check_batch_complete(batch_id, save_file_batch, save_file_batch_response)
+    _convert_to_json(save_file, save_file_batch, save_file_batch_response)
