@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 from typing import Dict, Iterable, List
 from more_itertools import divide
 from openai.types.chat import ChatCompletionMessageParam
@@ -8,12 +7,13 @@ import openai
 import tqdm
 
 from llms import RunnableModel
+from config import PROMPT_FILES, REPETITIONS, SYSTEM_PROMPT, result_file
+from feedback import FEEDBACK_SUCCESS
 from generate_llm_answers import (
-    remove_code_blocks,
     amount_of_llm_responses,
-    REPETITIONS,
-    SYSTEM_PROMPT,
-    PROMPT_FILES,
+    read_file_or_create,
+    read_prompt,
+    remove_code_blocks,
 )
 
 NUM_PARALLEL_LLM_REQUESTS = 3
@@ -48,19 +48,6 @@ async def ask_provider(
                 await asyncio.sleep(retry_delay)
 
 
-def amount_of_llm_responses(conversation: dict):
-    return sum(1 for message in conversation if message["role"] == "assistant")
-
-
-def read_file_or_create(save_file_path: str):
-    if os.path.exists(save_file_path):
-        with open(save_file_path, "r", encoding="utf-8") as file:
-            conversations = json.load(file)
-    else:
-        conversations = {}
-    return conversations
-
-
 async def _first_response_requests(
     llm_client: openai.AsyncOpenAI,
     model_info: RunnableModel,
@@ -81,8 +68,7 @@ async def _first_response_requests(
     ) as thread_pbar:
         processed_count = 0
         for prompt_file in prompt_list:
-            with open(f"dataset/prompts/{prompt_file}", "r", encoding="utf-8") as file:
-                prompt_content = file.read()
+            prompt_content = read_prompt(prompt_file)
             for i in range(REPETITIONS):
                 if prompt_file not in conversations:
                     conversations[prompt_file] = []
@@ -120,7 +106,7 @@ async def _first_response_requests(
 async def generate_first_response(
     llm_client: openai.AsyncOpenAI, model_info: RunnableModel
 ):
-    save_file_path = f"data/{model_info["name"].replace(':', '_')}.json"
+    save_file_path = result_file(model_info["name"])
     conversations: Dict[str, List] = read_file_or_create(save_file_path)
 
     total_requests = len(PROMPT_FILES) * REPETITIONS
@@ -204,7 +190,7 @@ async def next_response_request(
             for conversation in repetitions:
                 if (
                     amount_of_llm_responses(conversation) >= response_number
-                    or conversation[-1]["content"] == "The unit tests were successful."
+                    or conversation[-1]["content"] == FEEDBACK_SUCCESS
                 ):
                     main_pbar.update(1)
                     thread_pbar.update(1)
@@ -254,7 +240,7 @@ async def generate_next_response(
     model_info: RunnableModel,
     response_number: int,
 ):
-    save_file_path = f"data/{model_info["name"].replace(':', '_')}.json"
+    save_file_path = result_file(model_info["name"])
     with open(save_file_path, "r", encoding="utf-8") as file:
         data = json.load(file)
 

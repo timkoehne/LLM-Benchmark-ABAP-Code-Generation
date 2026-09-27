@@ -6,12 +6,9 @@ from openai.types.chat import ChatCompletionMessageParam
 import openai
 
 from llms import RunnableModel
-from generate_llm_answers import (
-    SYSTEM_PROMPT,
-    REPETITIONS,
-    PROMPT_FILES,
-    remove_code_blocks,
-)
+from config import PROMPT_FILES, REPETITIONS, SYSTEM_PROMPT
+from feedback import FEEDBACK_SUCCESS
+from generate_llm_answers import read_prompt, remove_code_blocks
 
 
 def _build_single_batch_request(
@@ -112,7 +109,7 @@ def generate_next_response_batch(
         for i, repetition in enumerate(current[prompt_file]):
             custom_id = f"P{prompt_file}-R{i}"
             conversation = current[prompt_file][i]
-            if conversation[-1]["content"] == "The unit tests were successful.":
+            if conversation[-1]["content"] == FEEDBACK_SUCCESS:
                 continue
             conversation_request = _build_single_batch_request(
                 model_info, custom_id, conversation
@@ -133,8 +130,7 @@ def generate_first_response_batch(
 ) -> str:
     conversations = []
     for prompt_file in PROMPT_FILES:
-        with open(f"dataset/prompts/{prompt_file}", "r", encoding="utf-8") as file:
-            prompt_content = file.read()
+        prompt_content = read_prompt(prompt_file)
         for i in range(REPETITIONS):
             conversation: List[ChatCompletionMessageParam] = [
                 {"role": "system", "content": SYSTEM_PROMPT},

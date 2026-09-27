@@ -8,6 +8,19 @@ import xml.etree.ElementTree as ET
 import re
 import tqdm
 
+from config import UNITTEST_DIR, result_file
+from feedback import (
+    FEEDBACK_ACTIVATION_FAILED,
+    FEEDBACK_CLASS_NAME_NOT_FOUND,
+    FEEDBACK_CLASS_NOT_CREATED,
+    FEEDBACK_NOT_ONE_PUBLIC_METHOD,
+    FEEDBACK_SOURCE_NOT_SET,
+    FEEDBACK_SUCCESS,
+    FEEDBACK_SYNTAX_FAILED,
+    FEEDBACK_UNITTEST_FAILED,
+    FEEDBACK_UNITTEST_SYNTAX_FAILED,
+)
+
 
 load_dotenv()
 
@@ -49,7 +62,7 @@ def class_find_method_calls(client: AdtClient, class_name: str):
 
 def build_unittest_src(client: AdtClient, class_name: str, prompt_file: str, chat):
     default_class_name = f"z_humaneval_{str.zfill(prompt_file[:-4], 3)}"
-    unittest_file = f"dataset/abap_unittests/{default_class_name}_test.abap"
+    unittest_file = os.path.join(UNITTEST_DIR, f"{default_class_name}_test.abap")
 
     unittest_method_calls = unittest_find_method_calls(
         default_class_name, unittest_file
@@ -63,7 +76,7 @@ def build_unittest_src(client: AdtClient, class_name: str, prompt_file: str, cha
         # print(f"replaced {unittest_method_calls[0]} with {new_method_call}")
         return unittest_src
     else:
-        add_to_chat(chat, "There should only be the one public method.")
+        add_to_chat(chat, FEEDBACK_NOT_ONE_PUBLIC_METHOD)
         return ""
 
 
@@ -73,13 +86,13 @@ def run_unit_tests(client: AdtClient, class_uri: str, chat):
     if len(result) > 0:
         add_to_chat(
             chat,
-            f"The unit test failed with the following errors:\n{result}\n Try to fix the class, not the unit test.",
+            f"{FEEDBACK_UNITTEST_FAILED}\n{result}\n Try to fix the class, not the unit test.",
         )
         success = False
     else:
         add_to_chat(
             chat,
-            f"The unit tests were successful.",
+            FEEDBACK_SUCCESS,
         )
         success = True
     return success
@@ -98,7 +111,7 @@ def syntax_check(client: AdtClient, class_uri: str, src: str, chat) -> bool:
     if len(syntaxcheck_results) > 0:
         add_to_chat(
             chat,
-            f"The syntax check failed with the following errors:\n{syntaxcheck_results}",
+            f"{FEEDBACK_SYNTAX_FAILED}\n{syntaxcheck_results}",
         )
         success = False
     else:
@@ -111,7 +124,7 @@ def syntax_check_unittest(client: AdtClient, class_uri: str, src: str, chat) -> 
     if len(syntaxcheck_results) > 0:
         add_to_chat(
             chat,
-            f"The unittest syntax check failed with the following errors:\n{syntaxcheck_results}\nTry to fix the class, not the unit test.",
+            f"{FEEDBACK_UNITTEST_SYNTAX_FAILED}\n{syntaxcheck_results}\nTry to fix the class, not the unit test.",
         )
         success = False
     else:
@@ -134,7 +147,7 @@ def create_class(client: AdtClient, class_name: str, chat) -> bool:
         xml_error = parse_error_xml(error_text)
         add_to_chat(
             chat,
-            f"The class could not be created due to the following error:\n{xml_error}",
+            f"{FEEDBACK_CLASS_NOT_CREATED}\n{xml_error}",
         )
         success = False
     return success
@@ -160,7 +173,7 @@ def set_source(
         xml_error = parse_error_xml(error_text)
         add_to_chat(
             chat,
-            f"The source code could not be set due to the following error:\n{xml_error}",
+            f"{FEEDBACK_SOURCE_NOT_SET}\n{xml_error}",
         )
         success = False
     return success
@@ -174,7 +187,7 @@ def activate_class(client: AdtClient, class_uri: str, chat) -> bool:
         error_text = str(e)
         add_to_chat(
             chat,
-            f"The activation failed with the following error:\n{error_text}",
+            f"{FEEDBACK_ACTIVATION_FAILED}\n{error_text}",
         )
         success = False
     return success
@@ -258,7 +271,7 @@ def run_abap_interaction(model_name: str):
     )
     client.login()
 
-    filename = f"data/{model_name.replace(':', '_')}.json"
+    filename = result_file(model_name)
     with open(filename, "r", encoding="utf-8") as file:
         prompt_files = json.load(file)
     for prompt_file, chats in tqdm.tqdm(
@@ -269,7 +282,7 @@ def run_abap_interaction(model_name: str):
 
             if chat[-1]["role"] == "user":
                 continue
-            if chat[-1]["content"] == "The unit tests were successful.":
+            if chat[-1]["content"] == FEEDBACK_SUCCESS:
                 continue
 
             skip_remaining_steps = False
@@ -285,7 +298,7 @@ def run_abap_interaction(model_name: str):
             else:
                 add_to_chat(
                     chat,
-                    f"Class name not found.",
+                    FEEDBACK_CLASS_NAME_NOT_FOUND,
                 )
                 skip_remaining_steps = True
 

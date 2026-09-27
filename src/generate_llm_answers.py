@@ -1,34 +1,10 @@
+"""Helpers shared by the LLM answer generators."""
+
 import json
 import os
-from dotenv import load_dotenv
 import re
 
-
-load_dotenv()
-
-PROMPT_FILES = os.listdir("dataset/prompts")
-REPETITIONS = 10
-
-
-SYSTEM_PROMPT = """\
-You are an expert ABAP developer specializing in generating high-quality ABAP classes for SAP systems.
-You write global ABAP classes with static methods.
-
-System Environment
-SAP Version: NetWeaver 7.57 (S/4HANA 2022)
-Decimal Separator: Always use . (period) as decimal separator in numeric literals.
-
-Development Rules
-- Always use RETURNING parameters instead of EXPORTING.
-- There should only be one public method per class.
-- Class names must always start with Z.
-
-Always respond with both the class definition and implementation code.
-Only respond with the code. Do not include any explanations or comments.\
-"""
-
-
-time_last_request = 0
+from config import PROMPT_DIR
 
 
 def remove_code_blocks(llm_response):
@@ -50,3 +26,8 @@ def read_file_or_create(save_file_path: str):
     else:
         conversations = {}
     return conversations
+
+
+def read_prompt(prompt_file: str) -> str:
+    with open(os.path.join(PROMPT_DIR, prompt_file), "r", encoding="utf-8") as file:
+        return file.read()
