@@ -23,23 +23,21 @@ tags each task with categories (string handling, math, database, ...).
 1. The model gets a fixed system prompt (`SYSTEM_PROMPT` in `src/config.py`)
    plus the task and answers with an ABAP class.
 2. `src/abap_interaction.py` talks to the SAP system over ADT and runs the
-   pipeline below. The first step that fails ends this round and its message
-   is appended to the conversation:
+   pipeline below. The first step that fails ends this round, and its error
+   is appended to the conversation as feedback:
 
-   | Step | Feedback message on failure |
-   |---|---|
-   | Find the class name in the answer | `Class name not found.` |
-   | Create the class (package `$TMP`) | `The class could not be created ...` |
-   | Syntax check | `The syntax check failed ...` |
-   | Upload the source | `The source code could not be set ...` |
-   | Activate | `The activation failed ...` |
-   | Insert the unit test (the class must have exactly one public method) | `There should only be the one public method.` |
-   | Syntax check of the unit test | `The unittest syntax check failed ...` |
-   | Run the unit tests | `The unit test failed ...` |
-   | *all passed* | `The unit tests were successful.` |
+   - find the class name in the answer
+   - create the class (package `$TMP`)
+   - syntax check
+   - upload the source
+   - activate
+   - insert the unit test (the class must have exactly one public method)
+   - syntax check of the unit test
+   - run the unit tests
 
-3. The class is deleted again, and the model gets the conversation back to try
-   again — up to **5 feedback rounds** (6 answers in total).
+3. The class is deleted again. If all steps passed, the trial is a success;
+   otherwise the model gets the conversation back to try again — up to
+   **5 feedback rounds** (6 answers in total).
 
 All conversations are stored per model in `data/<model>.json`. That file is the
 raw result; everything else is derived from it.
@@ -53,7 +51,7 @@ src/                 benchmark runner
   feedback.py        the fixed feedback messages (the analysis relies on their exact text)
   llms.py            API providers and the list of models to run
   generate_llm_*.py  LLM calls (parallel via OpenAI-compatible API, or OpenAI/Anthropic batch API)
-  abap_interaction.py  SAP/ADT pipeline and feedback messages
+  abap_interaction.py  SAP/ADT pipeline
   abap_errors.py     regexes that group SAP syntax errors into categories
 dataset/             tasks, unit tests, reference solutions, table definitions
 data/                raw results (<model>.json) and derived CSV/JSON files
@@ -71,7 +69,7 @@ Every setting exists in exactly one place:
 | API keys, SAP connection | `.env` (see below) |
 | Models to run: name, provider, temperature, max tokens | `MODELS_TO_RUN` in `src/llms.py` |
 | Tasks, repetitions, feedback rounds, system prompt | `src/config.py` |
-| Parallel requests / retries for the OpenAI-compatible API | top of `src/generate_llm_answers_parallel.py` |
+| Parallel requests / retries for the OpenAI-compatible API | `src/generate_llm_answers_parallel.py` (`NUM_PARALLEL_LLM_REQUESTS`, `ask_provider`) |
 | Model order and short names in plots and tables | `MODEL_ABBREVIATIONS` in `analysis/common.py` |
 | Labels and pipeline stages of the feedback messages | `FEEDBACK` in `analysis/common.py` |
 | Colours and plot style | `analysis/plot_style.py` |
@@ -100,7 +98,7 @@ Fill in the API key for each provider you want to use (see `src/llms.py`):
 | Provider | Variable | Notes |
 |---|---|---|
 | KISKI (GWDG Academic Cloud) | `KISKI_API_KEY` | Llama, Qwen, Codestral |
-| Ollama | – | Must run locally on `http://localhost:11434` |
+| Ollama | – | Configured to run locally on `http://localhost:11434` |
 | OpenAI | `OPENAI_API_KEY` | Uses the Batch API |
 | Anthropic | `ANTHROPIC_API_KEY` | Uses the Batch API |
 
@@ -159,9 +157,15 @@ This runs **every model in `MODELS_TO_RUN`** (`src/llms.py`) over all 180
 tasks × 10 repetitions × up to 6 answers. That is several thousand LLM calls
 per model, can take many hours and, for OpenAI/Anthropic, costs real money.
 
-Runs are **resumable**: existing conversations in `data/<model>.json` are
-skipped, so an interrupted run can simply be restarted. It also means a model
-that already has results in `data/` will do (almost) nothing.
+Runs are **resumable**, so an interrupted run can simply be restarted:
+
+- Ollama / KISKI: existing conversations in `data/<model>.json` are skipped.
+- OpenAI / Anthropic (batch API): each batch is submitted, then polled every
+  30 s and fetched automatically. While a run is unfinished, the pending
+  batch ID is stored in `data/<model>_batch.state`, so a restart continues
+  with that batch instead of submitting it again. The file is deleted when the
+  model is finished; a batch model whose `data/<model>.json` exists without a
+  state file is skipped, so its results are never overwritten.
 
 ### A small test run first
 
@@ -175,7 +179,7 @@ Before a full run, check that everything is connected with a few tasks:
    REPETITIONS = 1
    ```
 3. Run `uv run python src/main.py` and look at `data/<model>.json` — every
-   conversation should end with a feedback message from the table above.
+   conversation should end with a feedback message from SAP.
 4. Undo the changes, and delete the test JSON before running the analysis
    (the analysis picks up **every** JSON in `data/`).
 
@@ -206,13 +210,6 @@ When you add a **new model**, also add it to `MODEL_ABBREVIATIONS` in
 `analysis/common.py`. Otherwise the plots show it last under its full name, and
 the paper-specific scripts (`confidence_intervals.py`, `calculate_code_size.py`,
 `verify_paper_tables.py`) leave it out.
-
-## Troubleshooting
-
-- **Login / connection errors** — is the container up and has the CPU load
-  settled? Check `SAP_HOST` and `SAP_PASSWORD` in `.env`. An expired license
-  also blocks logins.
-- **All `erp_*` tasks fail** — the database tables are missing (setup step 4).
 
 ## License
 
